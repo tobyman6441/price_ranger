@@ -46,10 +46,10 @@ export function LoginForm() {
   }
 
   return (
-    <Card className="w-[350px]">
+    <Card className="w-full max-w-[350px] shadow-lg">
       <CardHeader>
-        <CardTitle>Login</CardTitle>
-        <CardDescription>Enter your credentials to access your account</CardDescription>
+        <CardTitle className="text-2xl font-bold text-center">Welcome Back</CardTitle>
+        <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
       </CardHeader>
       <form onSubmit={handleLogin}>
         <CardContent>
@@ -63,6 +63,7 @@ export function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="w-full"
               />
             </div>
             <div className="flex flex-col space-y-1.5">
@@ -74,12 +75,13 @@ export function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="w-full"
               />
             </div>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-between">
-          <Button type="submit" disabled={loading}>
+        <CardFooter className="flex justify-center">
+          <Button type="submit" disabled={loading} className="w-full">
             {loading ? 'Loading...' : 'Login'}
           </Button>
         </CardFooter>
