@@ -490,13 +490,6 @@ export function OpportunityCard({
           <h3 className="text-base font-medium text-foreground truncate">
             {title}
           </h3>
-          {promotion && (
-            <div className="mt-1">
-              <Badge variant="secondary" className="text-xs font-medium bg-green-100 text-green-700">
-                {promotion.type}: {promotion.discount} off
-              </Badge>
-            </div>
-          )}
           <div className="mt-1 space-y-1">
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="text-xs font-medium bg-muted/50">
@@ -531,41 +524,76 @@ export function OpportunityCard({
         </div>
       </div>
       
-      {packages.length > 0 ? (
-        <div className="mt-2 space-y-1">
-          <div className="flex items-center justify-between text-sm">
-            <span className="text-muted-foreground font-medium">
-              Option name
-            </span>
-            <div className="flex flex-col items-end">
-              {packages[0].finalPrice !== packages[0].price && (
-                <span className="text-xs text-muted-foreground line-through">
-                  ${Math.round(packages[0].price).toLocaleString()}
-                </span>
-              )}
-              <span className="text-foreground font-medium">
-                ${Math.round(packages[0].finalPrice).toLocaleString()}
-              </span>
-            </div>
-          </div>
-          
-          {priceInfo && (
-            <div className="mt-2 pt-1 border-t border-border/50 flex justify-between items-center text-sm">
-              <span className="text-muted-foreground font-medium">
-                Price Range
-              </span>
-              <div className="flex flex-col items-end">
-                {priceInfo.originalDisplay && (
-                  <span className="text-xs text-muted-foreground line-through">
-                    {priceInfo.originalDisplay}
-                  </span>
+      {options.length > 0 ? (
+        <div className="mt-3 space-y-3">
+          {/* Package Information */}
+          {options.map((option, index) => (
+            <div key={option.id} className={cn(
+              "flex items-center justify-between text-sm",
+              index > 0 && "pt-2 border-t border-border/40"
+            )}>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-sm font-medium truncate flex items-center gap-2">
+                  {option.details?.title || option.content || `Package ${index + 1}`}
+                  {option.isApproved && (
+                    <Badge variant="secondary" className="text-[10px] font-normal bg-green-100 text-green-700">
+                      Approved
+                    </Badge>
+                  )}
+                  {option.promotion && (
+                    <Badge variant="secondary" className="text-[10px] font-normal bg-purple-100 text-purple-700">
+                      {option.promotion.type}
+                    </Badge>
+                  )}
+                </h3>
+              </div>
+              <div className="flex-shrink-0 text-right">
+                {option.promotion ? (
+                  <div className="flex flex-col items-end">
+                    <span className="text-xs text-muted-foreground line-through">
+                      ${(option.price || option.details?.price || 0).toLocaleString()}
+                    </span>
+                    <div className="text-sm font-medium">
+                      ${Math.round(
+                        option.finalPrice || 
+                        option.details?.finalPrice || 
+                        calculateDiscountedPrice(option)
+                      ).toLocaleString()}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-sm font-medium">
+                    ${(option.price || option.details?.price || 0).toLocaleString()}
+                  </div>
                 )}
-                <span className={cn(
-                  "text-foreground font-medium",
-                  priceInfo.isApproved && "text-green-500"
-                )}>
-                  {priceInfo.display}
-                </span>
+              </div>
+            </div>
+          ))}
+          
+          {/* Price Range - Only show if there's more than one option */}
+          {options.length > 1 && (
+            <div className="flex items-center justify-between text-sm pt-2 border-t border-border/40">
+              <span className="text-muted-foreground">Price Range</span>
+              <div className="text-right">
+                {(() => {
+                  const prices = options.map(opt => 
+                    opt.finalPrice || 
+                    opt.details?.finalPrice || 
+                    (opt.promotion ? calculateDiscountedPrice(opt) : (opt.price || opt.details?.price || 0))
+                  );
+                  const minPrice = Math.min(...prices);
+                  const maxPrice = Math.max(...prices);
+                  
+                  return (
+                    <div className="font-medium">
+                      {minPrice === maxPrice ? (
+                        `$${minPrice.toLocaleString()}`
+                      ) : (
+                        `$${minPrice.toLocaleString()} - $${maxPrice.toLocaleString()}`
+                      )}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -575,4 +603,17 @@ export function OpportunityCard({
       )}
     </div>
   )
+}
+
+// Helper function to calculate discounted price
+function calculateDiscountedPrice(option: Option): number {
+  const basePrice = option.price || option.details?.price || 0;
+  if (!option.promotion) return basePrice;
+
+  const discountValue = parseFloat(option.promotion.discount.replace(/[^0-9.]/g, ''));
+  const isPercentage = option.promotion.discount.includes('%');
+  
+  return isPercentage 
+    ? basePrice * (1 - discountValue / 100)
+    : basePrice - discountValue;
 } 
