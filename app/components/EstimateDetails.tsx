@@ -122,11 +122,6 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
   const [displayPrice, setDisplayPrice] = useState<string>('$0.00');
   const [isEditingPrice, setIsEditingPrice] = useState(false);
   const [editingPrice, setEditingPrice] = useState('');
-  const [isPriceRange, setIsPriceRange] = useState(false);
-  const [priceRange, setPriceRange] = useState({ min: 0, max: 0 });
-  const [displayPriceRange, setDisplayPriceRange] = useState({ min: '$0.00', max: '$0.00' });
-  const [isEditingPriceRange, setIsEditingPriceRange] = useState(false);
-  const [editingPriceRange, setEditingPriceRange] = useState({ min: '0', max: '0' });
   const [apr, setApr] = useState(6.99);
   const [termLength, setTermLength] = useState(60);
   const [title, setTitle] = useState("");
@@ -180,14 +175,8 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
     return discountAmount
   };
 
-  const finalPrice = activePromotion ? (isPriceRange ? priceRange.min : price) - calculateDiscount(isPriceRange ? priceRange.min : price, activePromotion) : (isPriceRange ? priceRange.min : price);
+  const finalPrice = activePromotion ? (price) - calculateDiscount(price, activePromotion) : price;
   const monthlyPayment = calculateMonthlyPayment(finalPrice, activeFinancingOption?.apr || apr, activeFinancingOption?.termLength || termLength);
-
-  // Force a UI update when financing parameters change
-  useEffect(() => {
-    // No need to do anything, React will re-render when apr or termLength changes
-    // This is just to make it explicit that we want the UI to update
-  }, [apr, termLength]);
 
   // Update local state when optionDetails changes
   useEffect(() => {
@@ -197,29 +186,16 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
     setDescription(optionDetails.description);
     setIsApproved(optionDetails.isApproved || false);
     
-    // Handle price and price range
-    if (optionDetails.priceRange) {
-      setIsPriceRange(true);
-      setPriceRange(optionDetails.priceRange);
-      setDisplayPriceRange({
-        min: `$${optionDetails.priceRange.min.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        max: `$${optionDetails.priceRange.max.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      });
-      setEditingPriceRange({
-        min: optionDetails.priceRange.min.toString(),
-        max: optionDetails.priceRange.max.toString()
-      });
-    } else {
-      setIsPriceRange(false);
-      setPrice(optionDetails.price || 0);
-      setDisplayPrice(`$${(optionDetails.price || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-      setEditingPrice((optionDetails.price || 0).toString());
-    }
+    const fixedPrice = optionDetails.price || 0;
+    setPrice(fixedPrice);
+    setDisplayPrice(`$${fixedPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+    setEditingPrice(fixedPrice.toString());
     
     setImages(optionDetails.afterImage ? [optionDetails.afterImage] : []);
     setCurrentImageIndex(0);
     setIsCalculated(!!optionDetails.hasCalculations);
     setShowAsLowAsPrice(optionDetails.showAsLowAsPrice !== false);
+    
     // Set active promotion if it exists
     if (optionDetails.promotion) {
       setIsPromotionEnabled(true);
@@ -242,7 +218,6 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
   useEffect(() => {
     if (!isOpen) {
       setIsEditingPrice(false);
-      setIsEditingPriceRange(false);
     }
   }, [isOpen]);
 
@@ -281,17 +256,10 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
   };
 
   const handleSave = () => {
-    // Validate price range if in range mode
-    if (isPriceRange && (!priceRange.min || !priceRange.max || priceRange.min > priceRange.max)) {
-      console.error('Invalid price range state');
-      return;
-    }
-
     const details = {
       title,
       description,
-      price: isPriceRange ? 0 : price,
-      priceRange: isPriceRange ? priceRange : undefined,
+      price,
       afterImage: images[0] || '',
       hasCalculations: isCalculated,
       showAsLowAsPrice,
@@ -303,14 +271,6 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
     
     onSave(details);
     onClose();
-  };
-
-  const handleNextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
-  };
-
-  const handlePrevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -349,49 +309,12 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
     setEditingPrice(price.toString());
   };
 
-  const handlePriceRangeChange = (e: React.ChangeEvent<HTMLInputElement>, type: 'min' | 'max') => {
-    const value = e.target.value;
-    const rawValue = value.startsWith('$') ? value.slice(1) : value;
-    
-    setEditingPriceRange(prev => ({
-      ...prev,
-      [type]: rawValue
-    }));
-    
-    const numericValue = parseFloat(rawValue.replace(/,/g, ''));
-    if (!isNaN(numericValue)) {
-      setPriceRange(prev => ({
-        ...prev,
-        [type]: numericValue
-      }));
-      setDisplayPriceRange(prev => ({
-        ...prev,
-        [type]: `$${numericValue.toLocaleString('en-US', { 
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2 
-        })}`
-      }));
-    }
+  const handleNextImage = () => {
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
   };
 
-  const handlePriceRangeBlur = (type: 'min' | 'max') => {
-    setIsEditingPriceRange(false);
-    const formattedValue = `$${priceRange[type].toLocaleString('en-US', { 
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2 
-    })}`;
-    setDisplayPriceRange(prev => ({
-      ...prev,
-      [type]: formattedValue
-    }));
-  };
-
-  const handlePriceRangeFocus = (type: 'min' | 'max') => {
-    setIsEditingPriceRange(true);
-    setEditingPriceRange(prev => ({
-      ...prev,
-      [type]: priceRange[type].toString()
-    }));
+  const handlePrevImage = () => {
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
   };
 
   const handleSavePromotion = () => {
@@ -609,34 +532,6 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
     setShowFinanceOptionDialog(false);
   };
 
-  // Price range toggle handler
-  const handlePriceRangeToggle = (checked: boolean) => {
-    setIsPriceRange(checked);
-    if (checked) {
-      // When switching to range, use current price for both min and max initially
-      const currentPrice = price || 0;
-      const newPriceRange = {
-        min: currentPrice,
-        max: currentPrice
-      };
-      setPriceRange(newPriceRange);
-      setDisplayPriceRange({
-        min: `$${currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
-        max: `$${currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-      });
-      setEditingPriceRange({
-        min: currentPrice.toString(),
-        max: currentPrice.toString()
-      });
-    } else {
-      // When switching to fixed, use the min price as the fixed price
-      const minPrice = priceRange.min;
-      setPrice(minPrice);
-      setDisplayPrice(`$${minPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
-      setEditingPrice(minPrice.toString());
-    }
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-zinc-900 border-zinc-800">
@@ -757,60 +652,20 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                 </div>
               </div>
 
-              {/* Price Section with Promotions */}
+              {/* Price Section */}
               <div className="space-y-4">
                 <div className="flex flex-col gap-6">
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label className="text-muted-foreground/80">Total Price</Label>
-                      <div className="flex items-center gap-2">
-                        <Label className="text-sm text-muted-foreground/70">Fixed Amount</Label>
-                        <Switch
-                          checked={isPriceRange}
-                          onCheckedChange={handlePriceRangeToggle}
-                        />
-                        <Label className="text-sm text-muted-foreground/70">Range</Label>
-                      </div>
-                    </div>
-                    
-                    {!isPriceRange ? (
-                      <Input
-                        type="text"
-                        value={isEditingPrice ? editingPrice : displayPrice}
-                        onChange={handlePriceChange}
-                        onFocus={handlePriceFocus}
-                        onBlur={handlePriceBlur}
-                        placeholder="0.00"
-                        className="text-2xl font-bold text-muted-foreground/90 bg-background/50"
-                      />
-                    ) : (
-                      <div className="flex items-center gap-4">
-                        <div className="flex-1">
-                          <Label className="text-sm text-muted-foreground/70">Min</Label>
-                          <Input
-                            type="text"
-                            value={isEditingPriceRange ? editingPriceRange.min : displayPriceRange.min}
-                            onChange={(e) => handlePriceRangeChange(e, 'min')}
-                            onFocus={() => handlePriceRangeFocus('min')}
-                            onBlur={() => handlePriceRangeBlur('min')}
-                            placeholder="0.00"
-                            className="text-2xl font-bold text-muted-foreground/90 bg-background/50"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <Label className="text-sm text-muted-foreground/70">Max</Label>
-                          <Input
-                            type="text"
-                            value={isEditingPriceRange ? editingPriceRange.max : displayPriceRange.max}
-                            onChange={(e) => handlePriceRangeChange(e, 'max')}
-                            onFocus={() => handlePriceRangeFocus('max')}
-                            onBlur={() => handlePriceRangeBlur('max')}
-                            placeholder="0.00"
-                            className="text-2xl font-bold text-muted-foreground/90 bg-background/50"
-                          />
-                        </div>
-                      </div>
-                    )}
+                    <Label className="text-muted-foreground/80">Total Price</Label>
+                    <Input
+                      type="text"
+                      value={isEditingPrice ? editingPrice : displayPrice}
+                      onChange={handlePriceChange}
+                      onFocus={handlePriceFocus}
+                      onBlur={handlePriceBlur}
+                      placeholder="0.00"
+                      className="text-2xl font-bold text-muted-foreground/90 bg-background/50"
+                    />
                   </div>
                   
                   {/* Promotion Toggle */}
@@ -824,14 +679,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                     </div>
                     {isPromotionEnabled && activePromotion && (
                       <div className="text-sm text-muted-foreground/70">
-                        {isPriceRange ? (
-                          <>
-                            ${(priceRange.min - calculateDiscount(priceRange.min, activePromotion)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - 
-                            ${(priceRange.max - calculateDiscount(priceRange.max, activePromotion)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                          </>
-                        ) : (
-                          `$${(price - calculateDiscount(price, activePromotion)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
-                        )}
+                        `$${(price - calculateDiscount(price, activePromotion)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
                       </div>
                     )}
                   </div>

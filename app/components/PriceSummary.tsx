@@ -39,6 +39,14 @@ interface Operator {
   type: 'and' | 'or'
 }
 
+interface GroupTotal {
+  options: Option[];
+  total: number;
+  priceRange: { min: number; max: number; } | undefined;
+  monthlyPayment: number;
+  allApproved: boolean;
+}
+
 interface PriceSummaryProps {
   options: Option[]
   operators: Operator[]
@@ -79,41 +87,84 @@ export function PriceSummary({ options, operators }: PriceSummaryProps) {
 
   // Calculate total price for each "And" group
   const andGroupTotals = andGroups.map(group => {
-    const total = group.reduce((sum, option) => {
-      let price = option.price ?? option.details?.price ?? 0;
-      let priceRange = option.priceRange ?? option.details?.priceRange;
+    // Calculate total price and price range for the group
+    const groupPriceInfo = group.reduce((acc, option) => {
+      const price = option.price ?? option.details?.price ?? 0;
+      const priceRange = option.priceRange ?? option.details?.priceRange;
+      
+      // Skip if no valid price or price range is set
+      if (price === 0 && !priceRange) {
+        return acc;
+      }
       
       // Apply promotion discount if exists
       if (option.promotion) {
-        const discountAmount = parseFloat(option.promotion.discount.replace(/[^0-9.]/g, ''))
-        const isPercentage = option.promotion.discount.includes('%')
+        const discountAmount = parseFloat(option.promotion.discount.replace(/[^0-9.]/g, ''));
+        const isPercentage = option.promotion.discount.includes('%');
         
-        if (isPercentage) {
-          if (priceRange) {
-            price = priceRange.min * (1 - discountAmount / 100);
-          } else {
-            price = price * (1 - discountAmount / 100);
-          }
+        if (priceRange) {
+          // Apply discount to price range
+          const minDiscount = isPercentage 
+            ? priceRange.min * (discountAmount / 100)
+            : discountAmount;
+          const maxDiscount = isPercentage
+            ? priceRange.max * (discountAmount / 100)
+            : discountAmount;
+            
+          return {
+            total: acc.total + (priceRange.min - minDiscount),
+            priceRange: {
+              min: (acc.priceRange?.min || 0) + (priceRange.min - minDiscount),
+              max: (acc.priceRange?.max || 0) + (priceRange.max - maxDiscount)
+            }
+          };
         } else {
-          if (priceRange) {
-            price = priceRange.min - discountAmount;
-          } else {
-            price = price - discountAmount;
-          }
+          // Apply discount to fixed price
+          const discount = isPercentage
+            ? price * (discountAmount / 100)
+            : discountAmount;
+          
+          return {
+            total: acc.total + (price - discount),
+            priceRange: acc.priceRange
+          };
         }
       }
       
-      return sum + price;
-    }, 0);
+      // No promotion case
+      if (priceRange) {
+        return {
+          total: acc.total + priceRange.min,
+          priceRange: {
+            min: (acc.priceRange?.min || 0) + priceRange.min,
+            max: (acc.priceRange?.max || 0) + priceRange.max
+          }
+        };
+      }
+      
+      return {
+        total: acc.total + price,
+        priceRange: acc.priceRange
+      };
+    }, { total: 0, priceRange: undefined as { min: number; max: number; } | undefined });
 
-    return {
-      options: group,
-      total,
-      priceRange: group[0].priceRange ?? group[0].details?.priceRange,
-      monthlyPayment: calculateMonthlyPayment(total),
-      allApproved: group.every(opt => opt.isApproved)
-    };
-  })
+    // Only include groups that have a valid total or price range
+    if (groupPriceInfo.total > 0 || groupPriceInfo.priceRange) {
+      return {
+        options: group,
+        total: groupPriceInfo.total,
+        priceRange: groupPriceInfo.priceRange,
+        monthlyPayment: calculateMonthlyPayment(groupPriceInfo.priceRange?.min || groupPriceInfo.total),
+        allApproved: group.every(opt => opt.isApproved)
+      } as GroupTotal;
+    }
+    return null;
+  }).filter((group): group is GroupTotal => group !== null);
+
+  // Don't render anything if no valid price groups
+  if (andGroupTotals.length === 0) {
+    return null;
+  }
 
   const handleEditPackage = (index: number) => {
     setEditingPackage(index)
@@ -174,7 +225,7 @@ export function PriceSummary({ options, operators }: PriceSummaryProps) {
         </button>
       </CardHeader>
       <CardContent className="space-y-8">
-        {andGroupTotals.map((group, index) => (
+        {andGroupTotals.map((group: GroupTotal, index) => (
           <div key={`group-${index}`} className="space-y-6 pb-8 border-b border-gray-200 last:border-0">
             <div className="flex items-start justify-between">
               <div className="space-y-2">
