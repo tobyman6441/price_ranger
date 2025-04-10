@@ -279,7 +279,7 @@ export function PriceSummary({ options, operators }: PriceSummaryProps) {
                               {opt.promotion!.type}
                             </Badge>
                             <span className="text-sm text-gray-500">
-                              (${originalPrice.toLocaleString()} → ${discountedPrice.toLocaleString()})
+                              ${originalPrice.toLocaleString()} → ${discountedPrice.toLocaleString()}
                             </span>
                           </div>
                         )}

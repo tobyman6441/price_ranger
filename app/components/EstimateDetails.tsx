@@ -679,7 +679,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                     </div>
                     {isPromotionEnabled && activePromotion && (
                       <div className="text-sm text-muted-foreground/70">
-                        `$${(price - calculateDiscount(price, activePromotion)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+                        ${(price - calculateDiscount(price, activePromotion)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                     )}
                   </div>
