@@ -639,8 +639,8 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
 
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogTitle className="flex justify-between items-center">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-zinc-900 border-zinc-800">
+        <DialogTitle className="flex justify-between items-center border-b border-zinc-800 pb-4">
           <div className="flex items-center gap-4">
             <span>Estimate Details</span>
             {optionDetails && (
@@ -656,9 +656,6 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
               </Button>
             )}
           </div>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="h-4 w-4" />
-          </Button>
         </DialogTitle>
         
         {/* Success notification */}
@@ -675,7 +672,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
         
         <div className="flex flex-col h-full space-y-6 overflow-hidden">
           {/* Top Action Button */}
-          <div className="flex justify-between items-center flex-shrink-0">
+          <div className="flex justify-between items-center flex-shrink-0 bg-zinc-800/50 p-4 rounded-lg">
             <div className="flex gap-2">
               <Button
                 onClick={handleCalculate}
@@ -706,7 +703,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
             <div className="space-y-6">
               {/* Image Section */}
               <div className="space-y-4">
-                <div className="relative">
+                <div className="relative bg-zinc-800/50 rounded-lg p-1">
                   {images.length > 0 ? (
                     <div className="relative aspect-video rounded-lg overflow-hidden">
                       <Image
@@ -817,7 +814,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                   </div>
                   
                   {/* Promotion Toggle */}
-                  <div className="flex items-center justify-between p-4 bg-muted/20 rounded-lg">
+                  <div className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <Switch
                         checked={isPromotionEnabled}
@@ -841,7 +838,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
 
                   {/* Promotion Form */}
                   {isPromotionEnabled && (
-                    <div className="space-y-4 border rounded-lg p-4">
+                    <div className="space-y-4 border border-zinc-800 rounded-lg p-4 bg-zinc-800/30">
                       {activePromotion ? (
                         <div className="space-y-4">
                           <div className="space-y-2">
@@ -1106,7 +1103,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                   )}
 
                   {/* As Low As Price Toggle */}
-                  <div className="flex items-center justify-between p-4 bg-muted/20 rounded-lg">
+                  <div className="flex items-center justify-between p-4 bg-zinc-800/50 rounded-lg">
                     <div className="flex items-center gap-3">
                       <Switch
                         checked={showAsLowAsPrice}
@@ -1127,7 +1124,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                   </div>
 
                   {showAsLowAsPrice && isFinancingLibraryOpen && (
-                    <div className="p-4 bg-muted/20 rounded-lg space-y-4">
+                    <div className="p-4 bg-zinc-800/50 rounded-lg space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="font-medium">Financing Options Library</h3>
                         <Button 
@@ -1189,7 +1186,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                   )}
 
                   {showAsLowAsPrice && isCreatingFinancingOption && (
-                    <div className="p-4 bg-muted/20 rounded-lg space-y-4">
+                    <div className="p-4 bg-zinc-800/50 rounded-lg space-y-4">
                       <div className="flex items-center justify-between">
                         <h3 className="font-medium">Create Financing Option</h3>
                         <Button 
@@ -1249,7 +1246,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                   )}
 
                   {showAsLowAsPrice && !isFinancingLibraryOpen && !isCreatingFinancingOption && (
-                    <div className="flex gap-4 p-4 bg-muted/20 rounded-lg">
+                    <div className="flex gap-4 p-4 bg-zinc-800/50 rounded-lg">
                       {activeFinancingOption ? (
                         <div className="flex-1 space-y-2">
                           <div className="flex items-center justify-between">
