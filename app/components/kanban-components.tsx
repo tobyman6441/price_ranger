@@ -257,7 +257,7 @@ export function DroppableColumn({
       ref={setNodeRef}
       className={cn(
         "flex flex-col h-full rounded-lg p-4",
-        "bg-card",
+        "bg-muted/50",
         isOver && "bg-muted"
       )}
     >
@@ -473,7 +473,7 @@ export function OpportunityCard({
       className={`group relative rounded-lg border p-4 transition-all ${
         isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
       } ${dragHandleProps?.listeners ? 'touch-none' : ''}
-      bg-card shadow-sm hover:shadow-md border-border/40 hover:border-border/60`}
+      bg-white/25 shadow-sm hover:shadow-md border-border/40 hover:border-border/60`}
       {...(isDraggable && dragHandleProps ? {
         ...dragHandleProps.attributes,
         ...dragHandleProps.listeners,
@@ -529,19 +529,19 @@ export function OpportunityCard({
           {/* Package Information */}
           {options.map((option, index) => (
             <div key={option.id} className={cn(
-              "flex items-center justify-between text-sm",
+              "flex items-center justify-between text-sm gap-4",
               index > 0 && "pt-2 border-t border-border/40"
             )}>
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 max-w-[70%]">
                 <h3 className="text-sm font-medium truncate flex items-center gap-2">
-                  {option.details?.title || option.content || `Package ${index + 1}`}
+                  <span className="truncate">{option.details?.title || option.content || `Package ${index + 1}`}</span>
                   {option.isApproved && (
-                    <Badge variant="secondary" className="text-[10px] font-normal bg-green-100 text-green-700">
+                    <Badge variant="secondary" className="text-[10px] font-normal bg-green-100 text-green-700 flex-shrink-0">
                       Approved
                     </Badge>
                   )}
                   {option.promotion && (
-                    <Badge variant="secondary" className="text-[10px] font-normal bg-purple-100 text-purple-700">
+                    <Badge variant="secondary" className="text-[10px] font-normal bg-purple-100 text-purple-700 flex-shrink-0">
                       {option.promotion.type}
                     </Badge>
                   )}
