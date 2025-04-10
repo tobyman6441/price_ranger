@@ -678,7 +678,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                 onClick={handleCalculate}
                 className="bg-primary/80 text-primary-foreground/90 hover:bg-primary/70 whitespace-nowrap text-sm px-3 py-1.5 font-medium"
               >
-                Calculate costs & pricing
+                Calculate price
               </Button>
               <Button
                 variant="outline"

@@ -17,7 +17,7 @@ export default function SignUpPage() {
         <p className="text-center text-lg text-muted-foreground max-w-md">
           A simple and flexible tool for{' '}
           <br />
-          home improvement price presentation
+          home improvement price presentations
         </p>
       </div>
       <SignUpForm />
