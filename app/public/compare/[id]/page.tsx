@@ -282,75 +282,79 @@ export default function PublicComparePage() {
 
           {/* Mobile Carousel View with Swipe */}
           <div className="md:hidden">
-            <Carousel 
-              opts={{
-                align: "start",
-                loop: true,
-              }}
-              setApi={setCarouselApi}
-              className="w-full"
-            >
-              <CarouselContent>
-                {andGroupTotals.map((group, index) => (
-                  <CarouselItem key={index}>
-                    <div className="px-1"> {/* Add padding to ensure card doesn't touch screen edge */}
-                      <Card className={`${group.allApproved ? 'border-green-500 border-2' : ''} h-full`}>
-                        <CardHeader>
-                          <CardTitle className="flex items-center justify-between">
-                            <span>Package {index + 1}</span>
-                            {group.allApproved && (
-                              <Badge variant="secondary" className="bg-green-100 text-green-700">
-                                Approved
-                              </Badge>
-                            )}
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-4">
-                            {group.options.map((opt) => (
-                              <div key={opt.id} className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium">{opt.content}</span>
-                                  {opt.isApproved && (
-                                    <Badge variant="secondary" className="text-[10px] font-normal bg-green-100 text-green-700">
-                                      Approved
-                                    </Badge>
-                                  )}
-                                </div>
-                                {opt.details?.afterImage && (
-                                  <div className="relative aspect-video rounded-lg overflow-hidden">
-                                    <Image
-                                      src={opt.details.afterImage}
-                                      alt={opt.details.title}
-                                      fill
-                                      className="object-cover"
-                                    />
+            <div className="relative overflow-hidden">
+              <Carousel 
+                opts={{
+                  align: "start",
+                  loop: true,
+                  skipSnaps: false,
+                  dragFree: false
+                }}
+                setApi={setCarouselApi}
+                className="w-full"
+              >
+                <CarouselContent className="!-ml-0">
+                  {andGroupTotals.map((group, index) => (
+                    <CarouselItem key={index} className="!pl-0">
+                      <div className="px-1">
+                        <Card className={`${group.allApproved ? 'border-green-500 border-2' : ''} h-full`}>
+                          <CardHeader>
+                            <CardTitle className="flex items-center justify-between">
+                              <span>Package {index + 1}</span>
+                              {group.allApproved && (
+                                <Badge variant="secondary" className="bg-green-100 text-green-700">
+                                  Approved
+                                </Badge>
+                              )}
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            <div className="space-y-4">
+                              {group.options.map((opt) => (
+                                <div key={opt.id} className="space-y-2">
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-medium">{opt.content}</span>
+                                    {opt.isApproved && (
+                                      <Badge variant="secondary" className="text-[10px] font-normal bg-green-100 text-green-700">
+                                        Approved
+                                      </Badge>
+                                    )}
                                   </div>
-                                )}
-                                <p className="text-sm text-gray-600">{opt.details?.description}</p>
-                              </div>
-                            ))}
-                            <div className="pt-4 border-t">
-                              <div className="text-2xl font-bold">${group.total.toLocaleString()}</div>
-                              <div className="text-sm text-gray-500">
-                                As low as ${group.monthlyPayment.toLocaleString()}/month
+                                  {opt.details?.afterImage && (
+                                    <div className="relative aspect-video rounded-lg overflow-hidden">
+                                      <Image
+                                        src={opt.details.afterImage}
+                                        alt={opt.details.title}
+                                        fill
+                                        className="object-cover"
+                                      />
+                                    </div>
+                                  )}
+                                  <p className="text-sm text-gray-600">{opt.details?.description}</p>
+                                </div>
+                              ))}
+                              <div className="pt-4 border-t">
+                                <div className="text-2xl font-bold">${group.total.toLocaleString()}</div>
+                                <div className="text-sm text-gray-500">
+                                  As low as ${group.monthlyPayment.toLocaleString()}/month
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </CarouselItem>
-                ))}
-              </CarouselContent>
-            </Carousel>
-            
-            {/* Navigation controls completely outside the carousel */}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </CarouselItem>
+                  ))}
+                </CarouselContent>
+              </Carousel>
+            </div>
+
+            {/* Navigation controls below the carousel */}
             <div className="mt-6 flex flex-col items-center gap-4">
               <div className="flex items-center justify-between w-full px-4 max-w-sm mx-auto">
                 <button 
                   onClick={() => carouselApi?.scrollPrev()}
-                  className="flex items-center justify-center w-10 h-10 bg-white rounded-full shadow-md"
+                  className="flex items-center justify-center w-10 h-10 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors"
                 >
                   <ChevronLeft className="w-6 h-6" />
                 </button>
@@ -362,7 +366,7 @@ export default function PublicComparePage() {
                         carouselApi?.scrollTo(index)
                         setCurrentIndex(index)
                       }}
-                      className={`w-2 h-2 rounded-full ${
+                      className={`w-2 h-2 rounded-full transition-colors ${
                         index === currentIndex ? 'bg-gray-900' : 'bg-gray-300'
                       }`}
                     />
@@ -370,7 +374,7 @@ export default function PublicComparePage() {
                 </div>
                 <button 
                   onClick={() => carouselApi?.scrollNext()}
-                  className="flex items-center justify-center w-10 h-10 bg-white rounded-full shadow-md"
+                  className="flex items-center justify-center w-10 h-10 bg-white rounded-full shadow-md hover:bg-gray-50 transition-colors"
                 >
                   <ChevronRight className="w-6 h-6" />
                 </button>

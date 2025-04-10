@@ -597,29 +597,34 @@ export default function PublicComparePage() {
                   ))}
                 </div>
               </div>
-              <button
-                onClick={prevSlide}
-                className="absolute left-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-lg"
-              >
-                <ChevronLeft className="w-6 h-6" />
-              </button>
-              <button
-                onClick={nextSlide}
-                className="absolute right-2 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white p-2 rounded-full shadow-lg"
-              >
-                <ChevronRight className="w-6 h-6" />
-              </button>
-            </div>
-            <div className="flex justify-center gap-2 mt-4">
-              {andGroupTotals.map((_, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentIndex(index)}
-                  className={`w-2 h-2 rounded-full ${
-                    index === currentIndex ? 'bg-gray-900' : 'bg-gray-300'
-                  }`}
-                />
-              ))}
+              {/* Navigation controls */}
+              <div className="mt-6 flex flex-col items-center gap-4">
+                <div className="flex items-center justify-between w-full px-4 max-w-sm mx-auto">
+                  <button 
+                    onClick={prevSlide}
+                    className="flex items-center justify-center w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                  >
+                    <ChevronLeft className="w-6 h-6 text-white/60" />
+                  </button>
+                  <div className="flex gap-2">
+                    {andGroupTotals.map((_, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setCurrentIndex(index)}
+                        className={`w-2 h-2 rounded-full transition-colors ${
+                          index === currentIndex ? 'bg-white' : 'bg-white/20'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <button 
+                    onClick={nextSlide}
+                    className="flex items-center justify-center w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full transition-colors"
+                  >
+                    <ChevronRight className="w-6 h-6 text-white/60" />
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
