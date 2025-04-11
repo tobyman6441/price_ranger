@@ -755,7 +755,19 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
           content: opt.content || "", // Keep existing content or use empty string
           showAsLowAsPrice: false,
           promotion: undefined,
-          isApproved: false
+          isApproved: false,
+          // Initialize calculatedPriceDetails with default values
+          calculatedPriceDetails: {
+            materialCost: 0,
+            laborCost: 0,
+            otherCost: 0,
+            materialTax: 0,
+            laborTax: 0,
+            otherTax: 0,
+            totalTax: 0,
+            profitMargin: 75, // Default profit margin
+            totalPrice: 0
+          }
         } : opt
       )
       setOptions(updatedOptions)
@@ -899,6 +911,11 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
     calculatedPriceDetails?: {
       materialCost: number;
       laborCost: number;
+      otherCost: number;
+      materialTax: number;
+      laborTax: number;
+      otherTax: number;
+      totalTax: number;
       profitMargin: number;
       totalPrice: number;
     };
@@ -927,6 +944,18 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
         financingOption: details.financingOption,
         materials: details.materials || [],
         sections: details.sections || [],
+        // Preserve existing calculatedPriceDetails if they exist, otherwise use new ones
+        calculatedPriceDetails: details.calculatedPriceDetails || opt.calculatedPriceDetails || {
+          materialCost: 0,
+          laborCost: 0,
+          otherCost: 0,
+          materialTax: 0,
+          laborTax: 0,
+          otherTax: 0,
+          totalTax: 0,
+          profitMargin: 75,
+          totalPrice: details.price
+        },
         details: {
           title: details.title,
           description: details.description,

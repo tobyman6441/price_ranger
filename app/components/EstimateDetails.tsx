@@ -53,6 +53,11 @@ interface EstimateDetailsProps {
     calculatedPriceDetails?: {
       materialCost: number;
       laborCost: number;
+      otherCost: number;
+      materialTax: number;
+      laborTax: number;
+      otherTax: number;
+      totalTax: number;
       profitMargin: number;
       totalPrice: number;
     };
@@ -100,6 +105,11 @@ interface EstimateDetails {
   calculatedPriceDetails?: {
     materialCost: number;
     laborCost: number;
+    otherCost: number;
+    materialTax: number;
+    laborTax: number;
+    otherTax: number;
+    totalTax: number;
     profitMargin: number;
     totalPrice: number;
   };
@@ -178,6 +188,11 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
   const [calculatedPriceDetails, setCalculatedPriceDetails] = useState<{
     materialCost: number;
     laborCost: number;
+    otherCost: number;
+    materialTax: number;
+    laborTax: number;
+    otherTax: number;
+    totalTax: number;
     profitMargin: number;
     totalPrice: number;
   } | null>(null);
@@ -245,7 +260,14 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
 
     // Set calculated price details if they exist
     if (optionDetails.calculatedPriceDetails) {
-      setCalculatedPriceDetails(optionDetails.calculatedPriceDetails);
+      setCalculatedPriceDetails({
+        ...optionDetails.calculatedPriceDetails,
+        otherCost: optionDetails.calculatedPriceDetails.otherCost || 0,
+        materialTax: optionDetails.calculatedPriceDetails.materialTax || 0,
+        laborTax: optionDetails.calculatedPriceDetails.laborTax || 0,
+        otherTax: optionDetails.calculatedPriceDetails.otherTax || 0,
+        totalTax: optionDetails.calculatedPriceDetails.totalTax || 0
+      });
     }
   }, [optionDetails]);
 
@@ -263,6 +285,11 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
   const handlePriceCalculated = (calculatedPrice: {
     materialCost: number;
     laborCost: number;
+    otherCost: number;
+    materialTax: number;
+    laborTax: number;
+    otherTax: number;
+    totalTax: number;
     profitMargin: number;
     totalPrice: number;
   }) => {
@@ -279,8 +306,12 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
   const checkPromotionProfitMargin = (promotionDiscount: string) => {
     if (!calculatedPriceDetails) return true;
 
-    const { materialCost, laborCost, profitMargin } = calculatedPriceDetails;
-    const totalCost = materialCost + laborCost;
+    const { materialCost, laborCost, otherCost, materialTax, laborTax, otherTax } = calculatedPriceDetails;
+    const materialTaxAmount = (materialCost * materialTax) / 100;
+    const laborTaxAmount = (laborCost * laborTax) / 100;
+    const otherTaxAmount = (otherCost * otherTax) / 100;
+    const totalCost = materialCost + laborCost + otherCost;
+    const totalTaxAmount = materialTaxAmount + laborTaxAmount + otherTaxAmount;
     
     // Calculate the discounted price
     const discountAmount = parseFloat(promotionDiscount.replace(/[^0-9.]/g, ''));
@@ -289,13 +320,13 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
     
     let discountedPrice = currentPrice;
     if (isPercentage) {
-      discountedPrice = currentPrice * (1 - (discountAmount / 100));
+      discountedPrice = currentPrice * (1 - discountAmount / 100);
     } else {
       discountedPrice = currentPrice - discountAmount;
     }
-
+    
     // Calculate the new profit margin with the discount
-    const newProfitMargin = ((discountedPrice - totalCost) / discountedPrice) * 100;
+    const newProfitMargin = ((discountedPrice - totalCost - totalTaxAmount) / discountedPrice) * 100;
     
     // Return true if the new profit margin is above the minimum (30%)
     return newProfitMargin >= 30;
@@ -446,7 +477,14 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
       promotion: isPromotionEnabled ? activePromotion || undefined : undefined,
       financingOption: activeFinancingOption || undefined,
       options: optionDetails?.options || [],
-      calculatedPriceDetails: calculatedPriceDetails || undefined,
+      calculatedPriceDetails: calculatedPriceDetails ? {
+        ...calculatedPriceDetails,
+        otherCost: calculatedPriceDetails.otherCost || 0,
+        materialTax: calculatedPriceDetails.materialTax || 0,
+        laborTax: calculatedPriceDetails.laborTax || 0,
+        otherTax: calculatedPriceDetails.otherTax || 0,
+        totalTax: calculatedPriceDetails.totalTax || 0
+      } : undefined,
       _preventClose: false
     };
     
@@ -477,10 +515,15 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
 
       // If we have calculated price details, update the profit margin
       if (calculatedPriceDetails) {
-        const { materialCost, laborCost } = calculatedPriceDetails;
-        const totalCost = materialCost + laborCost;
+        const { materialCost, laborCost, otherCost, materialTax, laborTax, otherTax } = calculatedPriceDetails;
+        const materialTaxAmount = (materialCost * materialTax) / 100;
+        const laborTaxAmount = (laborCost * laborTax) / 100;
+        const otherTaxAmount = (otherCost * otherTax) / 100;
+        const totalCost = materialCost + laborCost + otherCost;
+        const totalTaxAmount = materialTaxAmount + laborTaxAmount + otherTaxAmount;
+        
         if (totalCost > 0) {
-          const newProfitMargin = ((numericValue - totalCost) / numericValue) * 100;
+          const newProfitMargin = ((numericValue - totalCost - totalTaxAmount) / numericValue) * 100;
           setCalculatedPriceDetails({
             ...calculatedPriceDetails,
             profitMargin: Math.round(newProfitMargin),
@@ -1391,6 +1434,10 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
           currentPrice={price}
           initialMaterialCost={calculatedPriceDetails?.materialCost}
           initialLaborCost={calculatedPriceDetails?.laborCost}
+          initialOtherCost={calculatedPriceDetails?.otherCost}
+          initialMaterialTax={calculatedPriceDetails?.materialTax}
+          initialLaborTax={calculatedPriceDetails?.laborTax}
+          initialOtherTax={calculatedPriceDetails?.otherTax}
         />
       </DialogContent>
     </Dialog>

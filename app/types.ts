@@ -28,6 +28,17 @@ export interface Option {
       termLength: number
     }
   }
+  calculatedPriceDetails?: {
+    materialCost: number
+    laborCost: number
+    otherCost: number
+    materialTax: number
+    laborTax: number
+    otherTax: number
+    totalTax: number
+    profitMargin: number
+    totalPrice: number
+  }
 }
 
 export interface Operator {

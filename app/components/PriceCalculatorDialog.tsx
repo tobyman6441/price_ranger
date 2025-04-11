@@ -12,6 +12,11 @@ interface PriceCalculatorDialogProps {
   onCalculate: (calculatedPrice: {
     materialCost: number;
     laborCost: number;
+    otherCost: number;
+    materialTax: number;
+    laborTax: number;
+    otherTax: number;
+    totalTax: number;
     profitMargin: number;
     totalPrice: number;
   }) => void;
@@ -19,6 +24,10 @@ interface PriceCalculatorDialogProps {
   defaultProfitMargin?: number;
   initialMaterialCost?: number;
   initialLaborCost?: number;
+  initialOtherCost?: number;
+  initialMaterialTax?: number;
+  initialLaborTax?: number;
+  initialOtherTax?: number;
 }
 
 export function PriceCalculatorDialog({
@@ -28,12 +37,21 @@ export function PriceCalculatorDialog({
   currentPrice,
   defaultProfitMargin = 75,
   initialMaterialCost = 0,
-  initialLaborCost = 0
+  initialLaborCost = 0,
+  initialOtherCost = 0,
+  initialMaterialTax = 0,
+  initialLaborTax = 0,
+  initialOtherTax = 0
 }: PriceCalculatorDialogProps) {
   const [materialCost, setMaterialCost] = useState<string>(initialMaterialCost.toString());
   const [laborCost, setLaborCost] = useState<string>(initialLaborCost.toString());
+  const [otherCost, setOtherCost] = useState<string>(initialOtherCost.toString());
+  const [materialTax, setMaterialTax] = useState<string>(initialMaterialTax.toString());
+  const [laborTax, setLaborTax] = useState<string>(initialLaborTax.toString());
+  const [otherTax, setOtherTax] = useState<string>(initialOtherTax.toString());
   const [profitMargin, setProfitMargin] = useState<number>(defaultProfitMargin);
   const [totalCost, setTotalCost] = useState<number>(0);
+  const [totalTax, setTotalTax] = useState<number>(0);
   const [totalPrice, setTotalPrice] = useState<number>(0);
   const [isAutoCalculating, setIsAutoCalculating] = useState(false);
   const [hasEnteredCosts, setHasEnteredCosts] = useState(false);
@@ -60,33 +78,47 @@ export function PriceCalculatorDialog({
   useEffect(() => {
     const material = parseFloat(materialCost) || 0;
     const labor = parseFloat(laborCost) || 0;
-    const total = material + labor;
+    const other = parseFloat(otherCost) || 0;
+    const materialTaxAmount = (material * (parseFloat(materialTax) || 0)) / 100;
+    const laborTaxAmount = (labor * (parseFloat(laborTax) || 0)) / 100;
+    const otherTaxAmount = (other * (parseFloat(otherTax) || 0)) / 100;
+    
+    const total = material + labor + other;
+    const totalTaxAmount = materialTaxAmount + laborTaxAmount + otherTaxAmount;
+    
     setTotalCost(total);
+    setTotalTax(totalTaxAmount);
     
     // If we have both a total price and costs, calculate the actual margin
     if (totalPrice > 0 && total > 0) {
-      const margin = ((totalPrice - total) / totalPrice) * 100;
+      const margin = ((totalPrice - total - totalTaxAmount) / totalPrice) * 100;
       if (!isAutoCalculating) {
         setProfitMargin(Math.round(margin));
         setShowMarginWarning(margin < 30);
       }
     }
-  }, [materialCost, laborCost, totalPrice, isAutoCalculating]);
+  }, [materialCost, laborCost, otherCost, materialTax, laborTax, otherTax, totalPrice, isAutoCalculating]);
 
   // Calculate price when profit margin changes in auto-calculate mode
   useEffect(() => {
     if (isAutoCalculating && hasEnteredCosts) {
       const material = parseFloat(materialCost) || 0;
       const labor = parseFloat(laborCost) || 0;
-      const total = material + labor;
+      const other = parseFloat(otherCost) || 0;
+      const materialTaxAmount = (material * (parseFloat(materialTax) || 0)) / 100;
+      const laborTaxAmount = (labor * (parseFloat(laborTax) || 0)) / 100;
+      const otherTaxAmount = (other * (parseFloat(otherTax) || 0)) / 100;
+      
+      const total = material + labor + other;
+      const totalTaxAmount = materialTaxAmount + laborTaxAmount + otherTaxAmount;
       
       if (total > 0) {
-        // Calculate price based on profit margin
-        const price = total / (1 - (profitMargin / 100));
+        // Calculate price based on profit margin and tax
+        const price = (total + totalTaxAmount) / (1 - (profitMargin / 100));
         setTotalPrice(price);
       }
     }
-  }, [profitMargin, materialCost, laborCost, isAutoCalculating, hasEnteredCosts]);
+  }, [profitMargin, materialCost, laborCost, otherCost, materialTax, laborTax, otherTax, isAutoCalculating, hasEnteredCosts]);
 
   const handleProfitMarginChange = (value: number[]) => {
     setIsAutoCalculating(true);
@@ -94,18 +126,27 @@ export function PriceCalculatorDialog({
     setShowMarginWarning(value[0] < 30);
   };
 
-  const handleCostChange = (value: string, type: 'material' | 'labor') => {
+  const handleCostChange = (value: string, type: 'material' | 'labor' | 'other' | 'materialTax' | 'laborTax' | 'otherTax') => {
     if (type === 'material') {
       setMaterialCost(value);
-    } else {
+    } else if (type === 'labor') {
       setLaborCost(value);
+    } else if (type === 'other') {
+      setOtherCost(value);
+    } else if (type === 'materialTax') {
+      setMaterialTax(value);
+    } else if (type === 'laborTax') {
+      setLaborTax(value);
+    } else if (type === 'otherTax') {
+      setOtherTax(value);
     }
 
     // Set hasEnteredCosts if either cost is entered
     const material = type === 'material' ? parseFloat(value) || 0 : parseFloat(materialCost) || 0;
     const labor = type === 'labor' ? parseFloat(value) || 0 : parseFloat(laborCost) || 0;
+    const other = type === 'other' ? parseFloat(value) || 0 : parseFloat(otherCost) || 0;
     
-    if (material > 0 || labor > 0) {
+    if (material > 0 || labor > 0 || other > 0) {
       setHasEnteredCosts(true);
       // If no price is set yet, start auto-calculating with default margin
       if (totalPrice === 0) {
@@ -116,9 +157,22 @@ export function PriceCalculatorDialog({
   };
 
   const handleCalculate = () => {
+    const material = parseFloat(materialCost) || 0;
+    const labor = parseFloat(laborCost) || 0;
+    const other = parseFloat(otherCost) || 0;
+    const materialTaxAmount = (material * (parseFloat(materialTax) || 0)) / 100;
+    const laborTaxAmount = (labor * (parseFloat(laborTax) || 0)) / 100;
+    const otherTaxAmount = (other * (parseFloat(otherTax) || 0)) / 100;
+    const totalTaxAmount = materialTaxAmount + laborTaxAmount + otherTaxAmount;
+
     onCalculate({
-      materialCost: parseFloat(materialCost) || 0,
-      laborCost: parseFloat(laborCost) || 0,
+      materialCost: material,
+      laborCost: labor,
+      otherCost: other,
+      materialTax: parseFloat(materialTax) || 0,
+      laborTax: parseFloat(laborTax) || 0,
+      otherTax: parseFloat(otherTax) || 0,
+      totalTax: totalTaxAmount,
       profitMargin,
       totalPrice
     });
@@ -143,26 +197,76 @@ export function PriceCalculatorDialog({
         
         <div className="space-y-6 pt-4">
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Material Cost</Label>
-              <Input
-                type="number"
-                value={materialCost}
-                onChange={(e) => handleCostChange(e.target.value, 'material')}
-                placeholder="Enter material cost"
-                className="bg-background/50"
-              />
+            {/* Material Cost and Tax */}
+            <div className="grid grid-cols-5 gap-4">
+              <div className="space-y-2 col-span-3">
+                <Label>Material Cost</Label>
+                <Input
+                  type="number"
+                  value={materialCost}
+                  onChange={(e) => handleCostChange(e.target.value, 'material')}
+                  placeholder="Enter material cost"
+                  className="bg-background/50"
+                />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>Material Tax (%)</Label>
+                <Input
+                  type="number"
+                  value={materialTax}
+                  onChange={(e) => handleCostChange(e.target.value, 'materialTax')}
+                  placeholder="Enter material tax"
+                  className="bg-background/50"
+                />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Labor Cost</Label>
-              <Input
-                type="number"
-                value={laborCost}
-                onChange={(e) => handleCostChange(e.target.value, 'labor')}
-                placeholder="Enter labor cost"
-                className="bg-background/50"
-              />
+            {/* Labor Cost and Tax */}
+            <div className="grid grid-cols-5 gap-4">
+              <div className="space-y-2 col-span-3">
+                <Label>Labor Cost</Label>
+                <Input
+                  type="number"
+                  value={laborCost}
+                  onChange={(e) => handleCostChange(e.target.value, 'labor')}
+                  placeholder="Enter labor cost"
+                  className="bg-background/50"
+                />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>Labor Tax (%)</Label>
+                <Input
+                  type="number"
+                  value={laborTax}
+                  onChange={(e) => handleCostChange(e.target.value, 'laborTax')}
+                  placeholder="Enter labor tax"
+                  className="bg-background/50"
+                />
+              </div>
+            </div>
+
+            {/* Other Cost and Tax */}
+            <div className="grid grid-cols-5 gap-4">
+              <div className="space-y-2 col-span-3">
+                <Label>Other Cost</Label>
+                <Input
+                  type="number"
+                  value={otherCost}
+                  onChange={(e) => handleCostChange(e.target.value, 'other')}
+                  placeholder="Enter other cost"
+                  className="bg-background/50"
+                />
+              </div>
+              <div className="space-y-2 col-span-2">
+                <Label>Other Tax (%)</Label>
+                <Input
+                  type="number"
+                  value={otherTax}
+                  onChange={(e) => handleCostChange(e.target.value, 'otherTax')}
+                  placeholder="Enter other tax"
+                  className="bg-background/50"
+                />
+              </div>
             </div>
 
             <div className="space-y-4">
@@ -197,6 +301,10 @@ export function PriceCalculatorDialog({
               <div className="flex justify-between items-center text-sm">
                 <span className="text-muted-foreground">Total Cost:</span>
                 <span className="font-medium">{formatCurrency(totalCost)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Total Tax:</span>
+                <span className="font-medium">{formatCurrency(totalTax)}</span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-muted-foreground">Total Price:</span>
