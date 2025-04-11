@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -195,7 +195,23 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
     totalTax: number;
     profitMargin: number;
     totalPrice: number;
-  } | null>(null);
+  } | null>(optionDetails?.calculatedPriceDetails || null);
+
+  // Initialize hasEnteredCosts based on whether we have existing costs
+  const hasInitialCosts = useMemo(() => {
+    if (optionDetails?.calculatedPriceDetails) {
+      const { materialCost, laborCost, otherCost } = optionDetails.calculatedPriceDetails;
+      return materialCost > 0 || laborCost > 0 || otherCost > 0;
+    }
+    return false;
+  }, [optionDetails?.calculatedPriceDetails]);
+
+  // Update calculatedPriceDetails when optionDetails changes
+  useEffect(() => {
+    if (optionDetails?.calculatedPriceDetails) {
+      setCalculatedPriceDetails(optionDetails.calculatedPriceDetails);
+    }
+  }, [optionDetails?.calculatedPriceDetails]);
 
   // Load saved financing options from localStorage on initial render
   useEffect(() => {
@@ -208,6 +224,35 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
       }
     }
   }, []);
+
+  // Update displayPrice whenever price changes
+  useEffect(() => {
+    setDisplayPrice(formatCurrency(price));
+  }, [price]);
+
+  // Format currency helper
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(value);
+  };
+
+  // Initialize price from optionDetails
+  useEffect(() => {
+    if (optionDetails?.price) {
+      setPrice(optionDetails.price);
+    }
+  }, [optionDetails?.price]);
+
+  // Update price when calculatedPriceDetails changes
+  useEffect(() => {
+    if (calculatedPriceDetails?.totalPrice) {
+      setPrice(calculatedPriceDetails.totalPrice);
+    }
+  }, [calculatedPriceDetails?.totalPrice]);
 
   const calculateDiscount = (price: number, promotion: Promotion) => {
     const discountAmount = parseFloat(promotion.discount.replace(/[^0-9.]/g, ''))
@@ -1393,23 +1438,25 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
         {/* Image Source Dialog */}
         <Dialog open={showImageSourceDialog} onOpenChange={setShowImageSourceDialog}>
           <DialogContent className="sm:max-w-md">
-            <DialogTitle className="sr-only">Select Image Source</DialogTitle>
+            <DialogTitle>Upload Images</DialogTitle>
             <div className="grid gap-4">
-              <Button variant="outline" onClick={() => handleImageSourceSelect("upload")}>
-                Upload images
-              </Button>
-              <Button variant="outline" onClick={() => handleImageSourceSelect("design")}>
-                Select from design ideas
-              </Button>
-              <Button variant="outline" onClick={() => handleImageSourceSelect("inspection")}>
-                Select from inspection
-              </Button>
-              <Button variant="outline" onClick={() => handleImageSourceSelect("job")}>
-                Select from job photos
-              </Button>
-              <Button variant="outline" onClick={() => handleImageSourceSelect("3d")}>
-                Select from Saved 3D designs
-              </Button>
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,.tiff,.heif"
+                multiple
+                onChange={(e) => {
+                  const files = Array.from(e.target.files || []);
+                  const imageUrls = files.map(file => URL.createObjectURL(file));
+                  setImages(prev => [...prev, ...imageUrls]);
+                  setShowImageSourceDialog(false);
+                }}
+                className="block w-full text-sm text-gray-500
+                  file:mr-4 file:py-2 file:px-4
+                  file:rounded-full file:border-0
+                  file:text-sm file:font-semibold
+                  file:bg-violet-50 file:text-violet-700
+                  hover:file:bg-violet-100"
+              />
             </div>
           </DialogContent>
         </Dialog>
@@ -1429,15 +1476,20 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
         <PriceCalculatorDialog
           isOpen={showPriceCalculator}
           onClose={() => setShowPriceCalculator(false)}
-          onCalculate={handlePriceCalculated}
-          defaultProfitMargin={calculatedPriceDetails?.profitMargin || 75}
+          onCalculate={(details) => {
+            setCalculatedPriceDetails(details);
+            setPrice(details.totalPrice);
+            setShowPriceCalculator(false);
+          }}
           currentPrice={price}
-          initialMaterialCost={calculatedPriceDetails?.materialCost}
-          initialLaborCost={calculatedPriceDetails?.laborCost}
-          initialOtherCost={calculatedPriceDetails?.otherCost}
-          initialMaterialTax={calculatedPriceDetails?.materialTax}
-          initialLaborTax={calculatedPriceDetails?.laborTax}
-          initialOtherTax={calculatedPriceDetails?.otherTax}
+          defaultProfitMargin={calculatedPriceDetails?.profitMargin || 75}
+          initialMaterialCost={calculatedPriceDetails?.materialCost || 0}
+          initialLaborCost={calculatedPriceDetails?.laborCost || 0}
+          initialOtherCost={calculatedPriceDetails?.otherCost || 0}
+          initialMaterialTax={calculatedPriceDetails?.materialTax || 0}
+          initialLaborTax={calculatedPriceDetails?.laborTax || 0}
+          initialOtherTax={calculatedPriceDetails?.otherTax || 0}
+          hasInitialCosts={hasInitialCosts}
         />
       </DialogContent>
     </Dialog>

@@ -28,6 +28,7 @@ interface PriceCalculatorDialogProps {
   initialMaterialTax?: number;
   initialLaborTax?: number;
   initialOtherTax?: number;
+  hasInitialCosts?: boolean;
 }
 
 export function PriceCalculatorDialog({
@@ -41,7 +42,8 @@ export function PriceCalculatorDialog({
   initialOtherCost = 0,
   initialMaterialTax = 0,
   initialLaborTax = 0,
-  initialOtherTax = 0
+  initialOtherTax = 0,
+  hasInitialCosts = false
 }: PriceCalculatorDialogProps) {
   const [materialCost, setMaterialCost] = useState<string>(initialMaterialCost.toString());
   const [laborCost, setLaborCost] = useState<string>(initialLaborCost.toString());
@@ -53,26 +55,35 @@ export function PriceCalculatorDialog({
   const [totalCost, setTotalCost] = useState<number>(0);
   const [totalTax, setTotalTax] = useState<number>(0);
   const [totalPrice, setTotalPrice] = useState<number>(0);
-  const [isAutoCalculating, setIsAutoCalculating] = useState(false);
-  const [hasEnteredCosts, setHasEnteredCosts] = useState(false);
+  const [isAutoCalculating, setIsAutoCalculating] = useState(hasInitialCosts);
+  const [hasEnteredCosts, setHasEnteredCosts] = useState(hasInitialCosts);
   const [showMarginWarning, setShowMarginWarning] = useState(false);
 
   // Initialize values when dialog opens
   useEffect(() => {
-    if (isOpen && currentPrice) {
-      setTotalPrice(currentPrice);
-      // If we have costs, calculate the actual margin
-      const material = parseFloat(materialCost) || 0;
-      const labor = parseFloat(laborCost) || 0;
-      const total = material + labor;
+    if (isOpen) {
+      if (currentPrice) {
+        setTotalPrice(currentPrice);
+      }
       
-      if (total > 0) {
-        const margin = ((currentPrice - total) / currentPrice) * 100;
-        setProfitMargin(Math.round(margin));
-        setShowMarginWarning(margin < 30);
+      // If we have initial costs, set up auto-calculation
+      if (hasInitialCosts) {
+        setIsAutoCalculating(true);
+        setHasEnteredCosts(true);
+        
+        const material = parseFloat(materialCost) || 0;
+        const labor = parseFloat(laborCost) || 0;
+        const other = parseFloat(otherCost) || 0;
+        const total = material + labor + other;
+        
+        if (total > 0 && currentPrice) {
+          const margin = ((currentPrice - total) / currentPrice) * 100;
+          setProfitMargin(Math.round(margin));
+          setShowMarginWarning(margin < 30);
+        }
       }
     }
-  }, [isOpen, currentPrice, materialCost, laborCost]);
+  }, [isOpen, currentPrice, materialCost, laborCost, otherCost, hasInitialCosts]);
 
   // Calculate total cost and profit margin whenever costs or price changes
   useEffect(() => {
@@ -120,6 +131,13 @@ export function PriceCalculatorDialog({
     }
   }, [profitMargin, materialCost, laborCost, otherCost, materialTax, laborTax, otherTax, isAutoCalculating, hasEnteredCosts]);
 
+  // Add new effect to handle initial price display
+  useEffect(() => {
+    if (isOpen && currentPrice) {
+      setTotalPrice(currentPrice);
+    }
+  }, [isOpen, currentPrice]);
+
   const handleProfitMarginChange = (value: number[]) => {
     setIsAutoCalculating(true);
     setProfitMargin(value[0]);
@@ -154,6 +172,17 @@ export function PriceCalculatorDialog({
         setProfitMargin(75); // Use 75% as default only when first entering costs
       }
     }
+
+    // Trigger price calculation immediately
+    const total = material + labor + other;
+    if (total > 0 && isAutoCalculating) {
+      const materialTaxAmount = (material * (parseFloat(materialTax) || 0)) / 100;
+      const laborTaxAmount = (labor * (parseFloat(laborTax) || 0)) / 100;
+      const otherTaxAmount = (other * (parseFloat(otherTax) || 0)) / 100;
+      const totalTaxAmount = materialTaxAmount + laborTaxAmount + otherTaxAmount;
+      const price = (total + totalTaxAmount) / (1 - (profitMargin / 100));
+      setTotalPrice(price);
+    }
   };
 
   const handleCalculate = () => {
@@ -165,6 +194,11 @@ export function PriceCalculatorDialog({
     const otherTaxAmount = (other * (parseFloat(otherTax) || 0)) / 100;
     const totalTaxAmount = materialTaxAmount + laborTaxAmount + otherTaxAmount;
 
+    // Calculate final price
+    const total = material + labor + other;
+    const finalPrice = (total + totalTaxAmount) / (1 - (profitMargin / 100));
+    setTotalPrice(finalPrice);
+
     onCalculate({
       materialCost: material,
       laborCost: labor,
@@ -174,9 +208,13 @@ export function PriceCalculatorDialog({
       otherTax: parseFloat(otherTax) || 0,
       totalTax: totalTaxAmount,
       profitMargin,
-      totalPrice
+      totalPrice: finalPrice
     });
-    onClose();
+
+    // Keep dialog open briefly to show the updated price
+    setTimeout(() => {
+      onClose();
+    }, 100);
   };
 
   const formatCurrency = (value: number) => {

@@ -427,11 +427,28 @@ export default function OpportunityPage() {
 
   const handleDuplicateOption = (optionToDuplicate: Option) => {
     // Create a deep copy to avoid reference issues
+    const duplicatedOption = JSON.parse(JSON.stringify(optionToDuplicate));
+    
+    // Create new option with proper initialization of calculatedPriceDetails
     const newOption: Option = {
-      ...JSON.parse(JSON.stringify(optionToDuplicate)),
+      ...duplicatedOption,
       id: Math.random().toString(36).substr(2, 9), // Generate random ID
-      title: `${optionToDuplicate.title} (Copy)`,
-      content: `${optionToDuplicate.content} (Copy)`
+      title: `${duplicatedOption.title} (Copy)`,
+      content: `${duplicatedOption.content} (Copy)`,
+      calculatedPriceDetails: duplicatedOption.calculatedPriceDetails ? {
+        ...duplicatedOption.calculatedPriceDetails,
+        // Ensure the totalPrice matches the current price
+        totalPrice: duplicatedOption.price || 0,
+        // Keep the existing costs and margin
+        materialCost: duplicatedOption.calculatedPriceDetails.materialCost || 0,
+        laborCost: duplicatedOption.calculatedPriceDetails.laborCost || 0,
+        otherCost: duplicatedOption.calculatedPriceDetails.otherCost || 0,
+        materialTax: duplicatedOption.calculatedPriceDetails.materialTax || 0,
+        laborTax: duplicatedOption.calculatedPriceDetails.laborTax || 0,
+        otherTax: duplicatedOption.calculatedPriceDetails.otherTax || 0,
+        totalTax: duplicatedOption.calculatedPriceDetails.totalTax || 0,
+        profitMargin: duplicatedOption.calculatedPriceDetails.profitMargin || 75
+      } : undefined
     };
     
     const updatedOptions = [...options, newOption];
@@ -449,7 +466,7 @@ export default function OpportunityPage() {
     saveToHistory(updatedOptions, updatedOperators);
     
     // Save to localStorage immediately
-    const opportunityId = params?.id as string
+    const opportunityId = params?.id as string;
     const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[];
     const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId);
     
@@ -492,7 +509,6 @@ export default function OpportunityPage() {
 
   const handleOptionClick = (optionId: string) => {
     setActiveDetailsOptionId(optionId);
-    setIsJobSelectorOpen(true);
   };
 
   const handleJobSelect = (job: Job) => {
