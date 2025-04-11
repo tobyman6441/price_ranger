@@ -24,7 +24,8 @@ export default function NewOpportunity() {
       options: [],
       operators: [],
       lastUpdated: new Date().toISOString(),
-      column: "drafts"
+      column: "drafts",
+      promotion: undefined
     }
 
     // Get existing opportunities
@@ -47,7 +48,8 @@ export default function NewOpportunity() {
       id: newId,
       title: template.name,
       lastUpdated: new Date().toISOString(),
-      column: "drafts"
+      column: "drafts",
+      promotion: template.data.promotion || undefined
     }
 
     // Get existing opportunities

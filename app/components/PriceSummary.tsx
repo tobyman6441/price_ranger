@@ -28,10 +28,22 @@ interface Option {
     isApproved?: boolean;
     showAsLowAsPrice?: boolean;
     promotion?: Promotion;
+    financingOption?: {
+      id: string;
+      name: string;
+      apr: number;
+      termLength: number;
+    };
   };
   isApproved?: boolean;
   showAsLowAsPrice?: boolean;
   promotion?: Promotion;
+  financingOption?: {
+    id: string;
+    name: string;
+    apr: number;
+    termLength: number;
+  };
 }
 
 interface Operator {
@@ -150,11 +162,23 @@ export function PriceSummary({ options, operators }: PriceSummaryProps) {
 
     // Only include groups that have a valid total or price range
     if (groupPriceInfo.total > 0 || groupPriceInfo.priceRange) {
+      // Find the first financing option in the group (if any exist)
+      const firstFinancingOption = group.find(opt => opt.financingOption)?.financingOption;
+      
+      // Calculate the monthly payment using the financing option details if available
+      const monthlyPayment = firstFinancingOption
+        ? calculateMonthlyPayment(
+            groupPriceInfo.priceRange?.min || groupPriceInfo.total,
+            firstFinancingOption.apr,
+            firstFinancingOption.termLength
+          )
+        : calculateMonthlyPayment(groupPriceInfo.priceRange?.min || groupPriceInfo.total);
+      
       return {
         options: group,
         total: groupPriceInfo.total,
         priceRange: groupPriceInfo.priceRange,
-        monthlyPayment: calculateMonthlyPayment(groupPriceInfo.priceRange?.min || groupPriceInfo.total),
+        monthlyPayment,
         allApproved: group.every(opt => opt.isApproved)
       } as GroupTotal;
     }
@@ -324,6 +348,17 @@ export function PriceSummary({ options, operators }: PriceSummaryProps) {
                 {group.options.some(opt => opt.showAsLowAsPrice !== false) && (
                   <div className="text-sm text-gray-500 whitespace-nowrap">
                     As low as ${group.monthlyPayment.toLocaleString()}/month
+                    {group.options.find(opt => opt.financingOption) && (
+                      <div className="text-xs text-gray-400">
+                        {(() => {
+                          const financingOpt = group.options.find(opt => opt.financingOption)?.financingOption;
+                          if (financingOpt) {
+                            return `${financingOpt.apr}% APR for ${financingOpt.termLength} months`;
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

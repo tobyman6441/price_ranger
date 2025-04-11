@@ -35,6 +35,39 @@ import { EstimateDetails } from '@/app/components/EstimateDetails'
 import { OpportunitySaveTemplateDialog } from '../../components/opportunity-save-template-dialog'
 import { Option, Operator, Opportunity, Template } from '@/app/types'
 
+// Adapter functions to convert between different interface versions
+const adaptOptionsToPriceSummary = (options: Option[]): any[] => {
+  return options.map(option => ({
+    ...option,
+    promotion: option.promotion ? {
+      ...option.promotion,
+      id: Math.random().toString(36).substr(2, 9)
+    } : undefined,
+  }));
+};
+
+const adaptOperatorsToPriceSummary = (operators: Operator[]): any[] => {
+  return operators.map((op, index) => ({
+    ...op,
+    id: parseInt(op.id) || index + 1
+  }));
+};
+
+const adaptOptionToEstimateDetails = (option: Option | undefined): any => {
+  if (!option) return undefined;
+  
+  return {
+    ...option,
+    options: [],
+    hasCalculations: option.hasCalculations ?? false,
+    showAsLowAsPrice: option.showAsLowAsPrice ?? false,
+    promotion: option.promotion ? {
+      ...option.promotion,
+      id: Math.random().toString(36).substr(2, 9)
+    } : undefined
+  };
+};
+
 interface Job {
   id: string
   thumbnail: string
@@ -205,43 +238,24 @@ export default function OpportunityPage() {
       // Initialize new options with all required fields
       const initialOptions: Option[] = [
         {
-          id: '1',
-          title: "Package 1",
-          content: "Package 1",
-          description: "This is Package 1",
-          price: 10000,
-          afterImage: "/after2.png",
-          isComplete: true,
-          materials: [],
-          sections: [],
-          showAsLowAsPrice: true,
-          hasCalculations: true,
-          details: {
-            title: "Package 1",
-            description: "This is Package 1",
-            price: 10000,
-            afterImage: "/after2.png",
-            materials: [],
-            sections: []
-          }
-        },
-        {
-          id: '2',
-          title: "Package 2",
-          content: "Package 2",
-          description: "This is Package 2",
+          id: Math.random().toString(36).substr(2, 9),
+          title: "Option name",
+          content: "Option name",
+          description: "This is a description of this deal.",
           price: 0,
-          afterImage: "/after2.png",
-          isComplete: true,
+          afterImage: "",
+          isComplete: false,
           materials: [],
           sections: [],
-          showAsLowAsPrice: true,
-          hasCalculations: true,
+          showAsLowAsPrice: false,
+          hasCalculations: false,
+          isApproved: false,
+          promotion: undefined,
           details: {
-            title: "Package 2",
-            description: "This is Package 2",
+            title: "Option name",
+            description: "This is a description of this deal.",
             price: 0,
-            afterImage: "/after2.png",
+            afterImage: "",
             materials: [],
             sections: []
           }
@@ -250,12 +264,6 @@ export default function OpportunityPage() {
       setOptions(initialOptions)
       const defaultColumn = columns[0]?.id || 'drafts'
       setCurrentColumn(defaultColumn)
-      // Add test promotion
-      setPromotion({
-        type: "Early Bird",
-        discount: "20% off",
-        validUntil: "2024-12-31"
-      })
       // Initialize history with the initial state
       setHistory([{ options: initialOptions, operators: [] }])
       setCurrentHistoryIndex(0)
@@ -324,8 +332,9 @@ export default function OpportunityPage() {
   }
 
   const handleAddOption = () => {
+    // Create a completely independent new option with default empty values
     const newOption: Option = {
-      id: (options.length + 1).toString(),
+      id: Math.random().toString(36).substr(2, 9), // Use random ID instead of sequential to avoid any collisions
       title: "Option name",
       description: "This is a description of this deal.",
       price: 0,
@@ -334,16 +343,47 @@ export default function OpportunityPage() {
       isComplete: false,
       materials: [],
       sections: [],
-      hasCalculations: false
+      showAsLowAsPrice: false,
+      hasCalculations: false,
+      details: {
+        title: "Option name",
+        description: "This is a description of this deal.",
+        price: 0,
+        afterImage: "",
+        materials: [],
+        sections: []
+      },
+      // Explicitly set promotion to undefined to avoid inheritance
+      promotion: undefined,
+      isApproved: false
     };
     
     const newOperator: Operator = {
-      id: (operators.length + 1).toString(),
+      id: Math.random().toString(36).substr(2, 9), // Use random ID
       type: 'or'
     };
     
-    setOptions([...options, newOption]);
-    setOperators([...operators, newOperator]);
+    const updatedOptions = [...options, newOption];
+    const updatedOperators = [...operators, newOperator];
+    
+    setOptions(updatedOptions);
+    setOperators(updatedOperators);
+    saveToHistory(updatedOptions, updatedOperators);
+    
+    // Save to localStorage immediately
+    const opportunityId = window.location.pathname.split('/').pop();
+    const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[];
+    const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId);
+    
+    if (existingIndex >= 0) {
+      opportunities[existingIndex] = {
+        ...opportunities[existingIndex],
+        options: updatedOptions,
+        operators: updatedOperators,
+        lastUpdated: new Date().toISOString()
+      };
+      localStorage.setItem('opportunities', JSON.stringify(opportunities));
+    }
   };
 
   const handleDeleteOption = (optionId: string) => {
@@ -385,11 +425,44 @@ export default function OpportunityPage() {
   };
 
   const handleDuplicateOption = (optionToDuplicate: Option) => {
-    const newOption = {
-      ...optionToDuplicate,
-      id: (Math.max(...options.map(opt => parseInt(opt.id))) + 1).toString()
+    // Create a deep copy to avoid reference issues
+    const newOption: Option = {
+      ...JSON.parse(JSON.stringify(optionToDuplicate)),
+      id: Math.random().toString(36).substr(2, 9), // Generate random ID
+      title: `${optionToDuplicate.title} (Copy)`,
+      content: `${optionToDuplicate.content} (Copy)`
     };
-    setOptions([...options, newOption]);
+    
+    const updatedOptions = [...options, newOption];
+    
+    // Create a new operator for the duplicated option
+    const newOperator: Operator = {
+      id: Math.random().toString(36).substr(2, 9),
+      type: 'or'
+    };
+    
+    const updatedOperators = [...operators, newOperator];
+    
+    setOptions(updatedOptions);
+    setOperators(updatedOperators);
+    saveToHistory(updatedOptions, updatedOperators);
+    
+    // Save to localStorage immediately
+    const opportunityId = window.location.pathname.split('/').pop();
+    const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[];
+    const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId);
+    
+    if (existingIndex >= 0) {
+      opportunities[existingIndex] = {
+        ...opportunities[existingIndex],
+        options: updatedOptions,
+        operators: updatedOperators,
+        lastUpdated: new Date().toISOString()
+      };
+      localStorage.setItem('opportunities', JSON.stringify(opportunities));
+    }
+    
+    toast.success('Option duplicated');
   };
 
   const handleOperatorChange = (operatorId: string, newType: 'and' | 'or') => {
@@ -680,7 +753,9 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
           materials: [],
           sections: [],
           content: opt.content || "", // Keep existing content or use empty string
-          showAsLowAsPrice: false
+          showAsLowAsPrice: false,
+          promotion: undefined,
+          isApproved: false
         } : opt
       )
       setOptions(updatedOptions)
@@ -814,6 +889,12 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
       validUntil: string;
       id: string;
     };
+    financingOption?: {
+      id: string;
+      name: string;
+      apr: number;
+      termLength: number;
+    };
     options?: any[];
     calculatedPriceDetails?: {
       materialCost: number;
@@ -837,8 +918,13 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
         isComplete: true,
         hasCalculations: true,
         isApproved: details.isApproved ?? false,
-        showAsLowAsPrice: details.showAsLowAsPrice,
-        promotion: details.promotion,
+        showAsLowAsPrice: details.showAsLowAsPrice ?? false,
+        promotion: details.promotion ? {
+          type: details.promotion.type,
+          discount: details.promotion.discount,
+          validUntil: details.promotion.validUntil
+        } : undefined,
+        financingOption: details.financingOption,
         materials: details.materials || [],
         sections: details.sections || [],
         details: {
@@ -846,6 +932,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
           description: details.description,
           price: details.price,
           afterImage: details.afterImage,
+          financingOption: details.financingOption,
           materials: details.materials || [],
           sections: details.sections || []
         }
@@ -1195,7 +1282,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
             {/* Add PriceSummary component */}
             {options.length > 0 && (
               <div className="mt-8 px-4 max-w-4xl mx-auto">
-                <PriceSummary options={options} operators={operators} />
+                <PriceSummary options={adaptOptionsToPriceSummary(options)} operators={adaptOperatorsToPriceSummary(operators)} />
               </div>
             )}
 
@@ -1428,7 +1515,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
           isOpen={showDetails}
           onClose={() => setShowDetails(false)}
           onCalculate={() => handleCalculate(activeDetailsOptionId!)}
-          optionDetails={options.find(opt => opt.id === activeDetailsOptionId)}
+          optionDetails={adaptOptionToEstimateDetails(options.find(opt => opt.id === activeDetailsOptionId))}
           onSave={handleSaveEstimate}
         />
 
