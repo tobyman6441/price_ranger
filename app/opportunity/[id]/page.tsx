@@ -4,7 +4,7 @@ import { useState, useRef, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import Image from 'next/image'
-import { Search, Filter, PlusCircle, X, AlignJustify, ChevronLeft, ChevronRight, Check, Edit, Trash2, Copy, Flag, Clipboard, ChevronDown, SlidersHorizontal, History } from 'lucide-react'
+import { Search, Filter, PlusCircle, X, AlignJustify, ChevronLeft, ChevronRight, Check, Edit, Trash2, Copy, Flag, Clipboard, ChevronDown, SlidersHorizontal, History, Printer } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -178,6 +178,7 @@ export default function OpportunityPage() {
   const [showDetails, setShowDetails] = useState(false)
   const [activeDetailsOptionId, setActiveDetailsOptionId] = useState<string | null>(null)
   const [templates, setTemplates] = useState<{ id: string; name: string; data: Opportunity }[]>([])
+  const [showPrintDialog, setShowPrintDialog] = useState(false)
 
   // Load columns from localStorage
   useEffect(() => {
@@ -994,6 +995,15 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
     }
   };
 
+  const handlePrint = () => {
+    setShowPrintDialog(true)
+    // Use setTimeout to ensure the dialog is rendered before printing
+    setTimeout(() => {
+      window.print()
+      setShowPrintDialog(false)
+    }, 100)
+  }
+
   return (
     <main className="container mx-auto p-4 min-h-screen">
       <div className="flex flex-col gap-4 mb-6">
@@ -1550,6 +1560,56 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
 
         <Toaster position="top-center" />
       </div>
+
+      {/* Add Print Contract Button */}
+      <div className="fixed bottom-4 right-4">
+        <Button
+          onClick={handlePrint}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          <Printer className="w-4 h-4 mr-2" />
+          Print Contract
+        </Button>
+      </div>
+
+      {/* Print Dialog */}
+      {showPrintDialog && (
+        <div className="print-only">
+          <div className="p-8">
+            <h1 className="text-2xl font-bold mb-4">{title}</h1>
+            {options.map((option, index) => (
+              <div key={option.id} className="mb-8">
+                <h2 className="text-xl font-semibold mb-2">Option {index + 1}: {option.title}</h2>
+                <p className="mb-2">{option.description}</p>
+                <p className="font-bold">Price: ${(option.price || 0).toLocaleString()}</p>
+                {option.promotion && (
+                  <div className="mt-2">
+                    <p>Promotion: {option.promotion.type}</p>
+                    <p>Discount: {option.promotion.discount}</p>
+                    <p>Valid until: {option.promotion.validUntil}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <style jsx global>{`
+        @media print {
+          .print-only {
+            display: block;
+          }
+          .no-print {
+            display: none;
+          }
+        }
+        @media screen {
+          .print-only {
+            display: none;
+          }
+        }
+      `}</style>
     </main>
   )
 } 

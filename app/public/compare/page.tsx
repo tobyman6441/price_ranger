@@ -362,7 +362,6 @@ export default function PublicComparePage() {
 
   return (
     <div className="min-h-screen bg-background py-12">
-      {/* Regular view for screen */}
       <div className="max-w-7xl mx-auto px-4 no-print">
         <h1 className="text-3xl font-bold text-center mb-8">Compare Packages</h1>
         
