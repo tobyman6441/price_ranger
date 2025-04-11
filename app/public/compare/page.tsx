@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { calculateMonthlyPayment } from '@/app/utils/calculations'
 import { Badge } from "@/components/ui/badge"
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Printer } from 'lucide-react'
 import Image from 'next/image'
+import { Button } from "@/components/ui/button"
 
 interface Option {
   id: number
@@ -330,6 +331,12 @@ export default function PublicComparePage() {
     )
   }
 
+  const handlePrint = () => {
+    if (typeof window !== 'undefined') {
+      window.print()
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -363,7 +370,16 @@ export default function PublicComparePage() {
   return (
     <div className="min-h-screen bg-background py-12">
       <div className="max-w-7xl mx-auto px-4 no-print">
-        <h1 className="text-3xl font-bold text-center mb-8">Compare Packages</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Compare Packages</h1>
+          <Button
+            onClick={handlePrint}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Printer className="w-4 h-4 mr-2" />
+            Print and sign
+          </Button>
+        </div>
         
         <div className="relative">
           {/* Desktop View */}

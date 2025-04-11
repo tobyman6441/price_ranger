@@ -1,10 +1,10 @@
 'use client'
 
 import { useState, useRef, useMemo, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import Image from 'next/image'
-import { Search, Filter, PlusCircle, X, AlignJustify, ChevronLeft, ChevronRight, Check, Edit, Trash2, Copy, Flag, Clipboard, ChevronDown, SlidersHorizontal, History, Printer } from 'lucide-react'
+import { Search, Filter, PlusCircle, X, AlignJustify, ChevronLeft, ChevronRight, Check, Edit, Trash2, Copy, Flag, Clipboard, ChevronDown, SlidersHorizontal, History } from 'lucide-react'
 import {
   Select,
   SelectContent,
@@ -153,6 +153,7 @@ const calculateDiscountedPrice = (price: number, promotion: { type: string; disc
 
 export default function OpportunityPage() {
   const router = useRouter()
+  const params = useParams()
   const [options, setOptions] = useState<Option[]>([])
   const [operators, setOperators] = useState<Operator[]>([])
   const [isEditingTitle, setIsEditingTitle] = useState(false)
@@ -178,7 +179,6 @@ export default function OpportunityPage() {
   const [showDetails, setShowDetails] = useState(false)
   const [activeDetailsOptionId, setActiveDetailsOptionId] = useState<string | null>(null)
   const [templates, setTemplates] = useState<{ id: string; name: string; data: Opportunity }[]>([])
-  const [showPrintDialog, setShowPrintDialog] = useState(false)
 
   // Load columns from localStorage
   useEffect(() => {
@@ -222,7 +222,7 @@ export default function OpportunityPage() {
 
   // Load existing opportunity data when the component mounts
   useEffect(() => {
-    const opportunityId = window.location.pathname.split('/').pop()
+    const opportunityId = params?.id as string
     const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[]
     const existingOpportunity = opportunities.find((opp: Opportunity) => opp.id === opportunityId)
 
@@ -292,7 +292,7 @@ export default function OpportunityPage() {
       setCurrentHistoryIndex(currentHistoryIndex - 1)
       
       // Save to localStorage
-      const opportunityId = window.location.pathname.split('/').pop()
+      const opportunityId = params?.id as string
       const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[]
       const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId)
       
@@ -316,7 +316,7 @@ export default function OpportunityPage() {
       setCurrentHistoryIndex(currentHistoryIndex + 1)
       
       // Save to localStorage
-      const opportunityId = window.location.pathname.split('/').pop()
+      const opportunityId = params?.id as string
       const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[]
       const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId)
       
@@ -372,7 +372,7 @@ export default function OpportunityPage() {
     saveToHistory(updatedOptions, updatedOperators);
     
     // Save to localStorage immediately
-    const opportunityId = window.location.pathname.split('/').pop();
+    const opportunityId = params?.id as string
     const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[];
     const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId);
     
@@ -408,7 +408,7 @@ export default function OpportunityPage() {
     saveToHistory(updatedOptions, updatedOperators);
     
     // Save to localStorage immediately
-    const opportunityId = window.location.pathname.split('/').pop();
+    const opportunityId = params?.id as string
     const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[];
     const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId);
     
@@ -449,7 +449,7 @@ export default function OpportunityPage() {
     saveToHistory(updatedOptions, updatedOperators);
     
     // Save to localStorage immediately
-    const opportunityId = window.location.pathname.split('/').pop();
+    const opportunityId = params?.id as string
     const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[];
     const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId);
     
@@ -474,7 +474,7 @@ export default function OpportunityPage() {
     saveToHistory(options, updatedOperators);
     
     // Save to localStorage immediately
-    const opportunityId = window.location.pathname.split('/').pop();
+    const opportunityId = params?.id as string
     const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[];
     const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId);
     
@@ -548,7 +548,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
     setOptions(updatedOptions);
 
     // Save to localStorage
-    const opportunityId = window.location.pathname.split('/').pop();
+    const opportunityId = params?.id as string
     const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[];
     const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId);
 
@@ -624,7 +624,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
     setCurrentColumn(status)
     
     // Save to localStorage immediately
-    const opportunityId = window.location.pathname.split('/').pop()
+    const opportunityId = params?.id as string
     const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[]
     const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId)
     
@@ -685,7 +685,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
     saveToHistory(newOptions, newOperators)
 
     // Save to localStorage immediately
-    const opportunityId = window.location.pathname.split('/').pop()
+    const opportunityId = params?.id as string
     const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[]
     const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId)
     
@@ -705,7 +705,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
   const handleBackClick = () => {
     const completedOptions = options.filter(opt => opt.hasCalculations)
     const opportunityData: Opportunity = {
-      id: window.location.pathname.split('/').pop() || '',
+      id: params?.id as string || '',
       title,
       options: completedOptions,
       operators: operators,
@@ -720,7 +720,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
   }
 
   const handleDeleteOpportunity = () => {
-    const opportunityId = window.location.pathname.split('/').pop()
+    const opportunityId = params?.id as string
     const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[]
     const updatedOpportunities = opportunities.filter((opp: Opportunity) => opp.id !== opportunityId)
     localStorage.setItem('opportunities', JSON.stringify(updatedOpportunities))
@@ -774,7 +774,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
       setOptions(updatedOptions)
       
       // Save to localStorage immediately
-      const opportunityId = window.location.pathname.split('/').pop()
+      const opportunityId = params?.id as string
       const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[]
       const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId)
       
@@ -922,7 +922,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
     };
     _preventClose?: boolean;
   }) => {
-    const opportunityId = window.location.pathname.split('/').pop();
+    const opportunityId = params?.id as string;
     
     // Update options with new details
     const updatedOptions = options.map(opt => 
@@ -995,13 +995,20 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
     }
   };
 
-  const handlePrint = () => {
-    setShowPrintDialog(true)
-    // Use setTimeout to ensure the dialog is rendered before printing
-    setTimeout(() => {
-      window.print()
-      setShowPrintDialog(false)
-    }, 100)
+  const opportunity: {
+    id: string
+    title: string
+    options: Option[]
+    operators: Operator[]
+    lastUpdated: string
+    column: string
+  } = {
+    id: params?.id as string || '',
+    title,
+    options,
+    operators,
+    lastUpdated: new Date().toISOString(),
+    column: currentColumn
   }
 
   return (
@@ -1058,14 +1065,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
           </div>
           <div className="flex items-center gap-1 sm:gap-2">
             <OpportunitySaveTemplateDialog
-              opportunity={{
-                id: window.location.pathname.split('/').pop() || '',
-                title,
-                options,
-                operators,
-                lastUpdated: new Date().toISOString(),
-                column: currentColumn
-              }}
+              opportunity={opportunity}
               existingTemplates={templates}
               onSaveTemplate={handleSaveTemplate}
               onSaveNewTemplate={handleSaveNewTemplate}
@@ -1560,40 +1560,6 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
 
         <Toaster position="top-center" />
       </div>
-
-      {/* Add Print Contract Button */}
-      <div className="fixed bottom-4 right-4">
-        <Button
-          onClick={handlePrint}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          <Printer className="w-4 h-4 mr-2" />
-          Print Contract
-        </Button>
-      </div>
-
-      {/* Print Dialog */}
-      {showPrintDialog && (
-        <div className="print-only">
-          <div className="p-8">
-            <h1 className="text-2xl font-bold mb-4">{title}</h1>
-            {options.map((option, index) => (
-              <div key={option.id} className="mb-8">
-                <h2 className="text-xl font-semibold mb-2">Option {index + 1}: {option.title}</h2>
-                <p className="mb-2">{option.description}</p>
-                <p className="font-bold">Price: ${(option.price || 0).toLocaleString()}</p>
-                {option.promotion && (
-                  <div className="mt-2">
-                    <p>Promotion: {option.promotion.type}</p>
-                    <p>Discount: {option.promotion.discount}</p>
-                    <p>Valid until: {option.promotion.validUntil}</p>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <style jsx global>{`
         @media print {
