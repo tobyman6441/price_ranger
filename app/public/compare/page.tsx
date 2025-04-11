@@ -463,10 +463,18 @@ export default function PublicComparePage() {
                           </div>
                         );
                       })}
-                      <div className="pt-2 border-t mt-2">
-                        <div className="text-2xl font-bold">${group.total.toLocaleString()}</div>
+                      <div className="pt-2 border-t mt-4">
+                        <div className="text-2xl font-bold">
+                          {/* Check if any option has a promotion and show original price */}
+                          {group.options.some(opt => opt.promotion) && (
+                            <div className="text-lg text-gray-500 line-through">
+                              ${group.options.reduce((sum, opt) => sum + (opt.details?.price || 0), 0).toLocaleString()}
+                            </div>
+                          )}
+                          ${group.total.toLocaleString()}
+                        </div>
                         {group.options.some(opt => opt.showAsLowAsPrice !== false) && (
-                          <div className="text-sm text-gray-500">
+                          <div className="text-gray-500">
                             As low as ${group.monthlyPayment.toLocaleString()}/month
                           </div>
                         )}
@@ -581,10 +589,18 @@ export default function PublicComparePage() {
                                   </div>
                                 );
                               })}
-                              <div className="pt-2 border-t mt-2">
-                                <div className="text-2xl font-bold">${group.total.toLocaleString()}</div>
+                              <div className="pt-2 border-t mt-4">
+                                <div className="text-2xl font-bold">
+                                  {/* Check if any option has a promotion and show original price */}
+                                  {group.options.some(opt => opt.promotion) && (
+                                    <div className="text-lg text-gray-500 line-through">
+                                      ${group.options.reduce((sum, opt) => sum + (opt.details?.price || 0), 0).toLocaleString()}
+                                    </div>
+                                  )}
+                                  ${group.total.toLocaleString()}
+                                </div>
                                 {group.options.some(opt => opt.showAsLowAsPrice !== false) && (
-                                  <div className="text-sm text-gray-500">
+                                  <div className="text-gray-500">
                                     As low as ${group.monthlyPayment.toLocaleString()}/month
                                   </div>
                                 )}
@@ -727,6 +743,12 @@ export default function PublicComparePage() {
               })}
               <div className="pt-2 border-t mt-4">
                 <div className="text-2xl font-bold">
+                  {/* Check if any option has a promotion and show original price */}
+                  {group.options.some(opt => opt.promotion) && (
+                    <div className="text-lg text-gray-500 line-through">
+                      ${group.options.reduce((sum, opt) => sum + (opt.details?.price || 0), 0).toLocaleString()}
+                    </div>
+                  )}
                   ${group.total.toLocaleString()}
                 </div>
                 {group.options.some(opt => opt.showAsLowAsPrice !== false) && (

@@ -812,7 +812,16 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
       type: string;
       discount: string;
       validUntil: string;
+      id: string;
     };
+    options?: any[];
+    calculatedPriceDetails?: {
+      materialCost: number;
+      laborCost: number;
+      profitMargin: number;
+      totalPrice: number;
+    };
+    _preventClose?: boolean;
   }) => {
     const opportunityId = window.location.pathname.split('/').pop();
     
@@ -863,7 +872,10 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
       localStorage.setItem('opportunities', JSON.stringify(opportunities));
     }
 
-    setShowDetails(false);
+    // Only close the dialog if _preventClose is not set
+    if (!details._preventClose) {
+      setShowDetails(false);
+    }
   };
 
   return (
@@ -1067,7 +1079,12 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
                                         <Badge variant="secondary" className="bg-purple-100 text-purple-700">
                                           {option.promotion.type}
                                         </Badge>
-                                        <span className="text-xs text-purple-700">${parseFloat(option.promotion.discount.replace(/[^0-9.]/g, '')).toLocaleString('en-US')}</span>
+                                        <span className="text-xs text-purple-700">
+                                          {option.promotion.discount.includes('%') ? 
+                                            `${parseFloat(option.promotion.discount.replace(/[^0-9.]/g, ''))}%` : 
+                                            `$${parseFloat(option.promotion.discount.replace(/[^0-9.]/g, '')).toLocaleString('en-US')}`
+                                          }
+                                        </span>
                                       </div>
                                       <div className="flex flex-col">
                                         <span className="text-sm text-muted-foreground line-through">

@@ -279,7 +279,21 @@ export function PriceSummary({ options, operators }: PriceSummaryProps) {
                               {opt.promotion!.type}
                             </Badge>
                             <span className="text-sm text-gray-500">
-                              ${parseFloat(opt.promotion!.discount.replace(/[^0-9.]/g, '')).toLocaleString('en-US')} → ${discountedPrice.toLocaleString()}
+                              {opt.promotion!.discount.includes('%') ? 
+                                <>
+                                  <span className="line-through">${originalPrice.toLocaleString()}</span>
+                                  {' → '}
+                                  <span className="font-medium text-gray-700">${discountedPrice.toLocaleString()}</span>
+                                  <span className="text-green-600"> ({opt.promotion!.discount} off)</span>
+                                </>
+                                : 
+                                <>
+                                  <span className="line-through">${originalPrice.toLocaleString()}</span>
+                                  {' → '}
+                                  <span className="font-medium text-gray-700">${discountedPrice.toLocaleString()}</span>
+                                  <span className="text-green-600"> ({opt.promotion!.discount} off)</span>
+                                </>
+                              }
                             </span>
                           </div>
                         )}
@@ -297,7 +311,15 @@ export function PriceSummary({ options, operators }: PriceSummaryProps) {
                     ${group.priceRange.min.toLocaleString()} - ${group.priceRange.max.toLocaleString()}
                   </div>
                 ) : (
-                  <div className="text-lg font-bold">${group.total.toLocaleString()}</div>
+                  <>
+                    {/* If any option in the group has a promotion, show original price with strikethrough */}
+                    {group.options.some(opt => opt.promotion) && (
+                      <div className="text-sm text-gray-500 line-through">
+                        ${group.options.reduce((sum, opt) => sum + (opt.price ?? opt.details?.price ?? 0), 0).toLocaleString()}
+                      </div>
+                    )}
+                    <div className="text-lg font-bold">${group.total.toLocaleString()}</div>
+                  </>
                 )}
                 {group.options.some(opt => opt.showAsLowAsPrice !== false) && (
                   <div className="text-sm text-gray-500 whitespace-nowrap">

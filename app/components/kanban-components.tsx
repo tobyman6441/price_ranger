@@ -548,7 +548,7 @@ export function OpportunityCard({
                 </h3>
               </div>
               <div className="flex-shrink-0 text-right">
-                {option.promotion ? (
+                {option.promotion || (promotion && !option.finalPrice) ? (
                   <div className="flex flex-col items-end">
                     <span className="text-xs text-muted-foreground line-through">
                       ${(option.price || option.details?.price || 0).toLocaleString()}
@@ -575,31 +575,33 @@ export function OpportunityCard({
             <div className="flex items-center justify-between text-sm pt-2 border-t border-border/40">
               <span className="text-muted-foreground">Price Range</span>
               <div className="text-right">
-                {(() => {
-                  const prices = options.map(opt => 
-                    opt.finalPrice || 
-                    opt.details?.finalPrice || 
-                    (opt.promotion ? calculateDiscountedPrice(opt) : (opt.price || opt.details?.price || 0))
-                  );
-                  const minPrice = Math.min(...prices);
-                  const maxPrice = Math.max(...prices);
-                  
-                  return (
-                    <div className="font-medium">
-                      {minPrice === maxPrice ? (
-                        `$${minPrice.toLocaleString()}`
-                      ) : (
-                        `$${minPrice.toLocaleString()} - $${maxPrice.toLocaleString()}`
-                      )}
-                    </div>
-                  );
-                })()}
+                {priceInfo?.originalDisplay && (
+                  <div className="text-xs text-muted-foreground line-through">
+                    {priceInfo.originalDisplay}
+                  </div>
+                )}
+                <div className="font-medium">
+                  {priceInfo?.display}
+                </div>
               </div>
             </div>
           )}
         </div>
       ) : (
         <p className="mt-2 text-xs text-foreground/60 italic">No packages added</p>
+      )}
+
+      {/* Promotion Display */}
+      {promotion && (
+        <div className="mt-2 p-2 bg-purple-50 rounded-md">
+          <div className="flex items-center space-x-2">
+            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+              {promotion.type}
+            </Badge>
+            <span className="text-sm text-purple-700 font-medium">{promotion.discount}</span>
+            <span className="text-xs text-purple-500">Valid until {new Date(promotion.validUntil).toLocaleDateString()}</span>
+          </div>
+        </div>
       )}
     </div>
   )

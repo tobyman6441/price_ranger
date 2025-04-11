@@ -129,6 +129,7 @@ interface EstimateDetails {
       };
     };
   }>;
+  _preventClose?: boolean;
 }
 
 export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, onSave }: EstimateDetailsProps) {
@@ -371,6 +372,38 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
     setPromotionName("");
     setDiscountValue("");
     setIsCreatingPromotion(false);
+    
+    // Apply the promotion to the options and save changes
+    if (optionDetails) {
+      // Calculate and save final prices for each option
+      const updatedOptions = optionDetails.options?.map(option => {
+        const originalPrice = option.price || option.details?.price;
+        if (originalPrice) {
+          const discountValue = parseFloat(newPromotion.discount.replace(/[^0-9.]/g, ''));
+          const isPercentage = newPromotion.discount.includes('%');
+          const finalPrice = isPercentage 
+            ? originalPrice * (1 - discountValue / 100)
+            : originalPrice - discountValue;
+
+          return {
+            ...option,
+            finalPrice,
+            details: option.details 
+              ? { ...option.details, finalPrice }
+              : option.details
+          };
+        }
+        return option;
+      }) || [];
+
+      // Create updated details and save without closing
+      onSave({
+        ...optionDetails,
+        promotion: newPromotion,
+        options: updatedOptions,
+        _preventClose: true
+      });
+    }
   };
 
   const handleImageSourceSelect = (source: string) => {
@@ -402,7 +435,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
   };
 
   const handleSave = () => {
-    const details = {
+    const details: EstimateDetails = {
       title,
       description,
       price,
@@ -410,14 +443,18 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
       hasCalculations: isCalculated,
       showAsLowAsPrice,
       isApproved,
-      promotion: activePromotion || undefined,
+      promotion: isPromotionEnabled ? activePromotion || undefined : undefined,
       financingOption: activeFinancingOption || undefined,
       options: optionDetails?.options || [],
-      calculatedPriceDetails: calculatedPriceDetails || undefined
+      calculatedPriceDetails: calculatedPriceDetails || undefined,
+      _preventClose: false
     };
     
     onSave(details);
-    onClose();
+    // Only close if explicitly saving (not when applying a promotion)
+    if (!details._preventClose) {
+      onClose();
+    }
   };
 
   const handlePriceChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -507,8 +544,10 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
   };
 
   const handleApplyPromotion = (promotion: Promotion) => {
+    // Set the active promotion and update UI state
     setActivePromotion(promotion);
     setIsCreatingPromotion(false);
+    setIsPromotionEnabled(true);
 
     if (!optionDetails) return;
 
@@ -533,12 +572,24 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
       return option;
     }) || [];
 
-    // Update the option details with the new final prices
-    onSave({
-      ...optionDetails,
+    // Create the updated details object
+    const updatedDetails: EstimateDetails = {
+      title,
+      description,
+      price,
+      afterImage: images[0] || '',
+      hasCalculations: isCalculated,
+      showAsLowAsPrice,
+      isApproved,
+      promotion,
+      financingOption: activeFinancingOption || undefined,
       options: updatedOptions,
-      promotion
-    });
+      calculatedPriceDetails: calculatedPriceDetails || undefined,
+      _preventClose: true
+    };
+    
+    // Save the changes but don't close the estimate details screen
+    onSave(updatedDetails);
   };
 
   const handleRemovePromotion = () => {
@@ -559,7 +610,8 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
     onSave({
       ...optionDetails,
       options: updatedOptions,
-      promotion: undefined
+      promotion: undefined,
+      _preventClose: true
     });
   };
 
@@ -685,7 +737,12 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={() => onClose()}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      // Only allow closing through explicit close button (X) or Save button
+      if (!open && !isCreatingPromotion && !isFinancingLibraryOpen && !showImageSourceDialog && !showFinanceOptionDialog && !showPriceCalculator) {
+        onClose();
+      }
+    }}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-zinc-900 border-zinc-800">
         <DialogTitle className="flex justify-between items-center border-b border-zinc-800 pb-4">
           <div className="flex items-center gap-4">
@@ -793,7 +850,12 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                     <div className="flex items-center gap-3">
                       <Switch
                         checked={isPromotionEnabled}
-                        onCheckedChange={setIsPromotionEnabled}
+                        onCheckedChange={(checked) => {
+                          setIsPromotionEnabled(checked);
+                          if (!checked && activePromotion) {
+                            handleRemovePromotion();
+                          }
+                        }}
                       />
                       <Label className="text-sm font-medium text-muted-foreground/90">Apply Promotion</Label>
                     </div>
@@ -841,7 +903,10 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                             <div className="space-y-1">
                               <p className="font-medium">{activePromotion.type}</p>
                               <p className="text-sm text-muted-foreground">
-                                ${parseFloat(activePromotion.discount.replace(/[^0-9.]/g, '')).toLocaleString('en-US')} off
+                                {activePromotion.discount.includes('%') ? 
+                                  `${parseFloat(activePromotion.discount.replace(/[^0-9.]/g, ''))}% off` : 
+                                  `$${parseFloat(activePromotion.discount.replace(/[^0-9.]/g, '')).toLocaleString('en-US')} off`
+                                }
                               </p>
                               <p className="text-sm font-medium text-green-600">
                                 Savings: ${calculateDiscount(price, activePromotion).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -870,58 +935,6 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                             >
                               Create New Promotion
                             </Button>
-                            {savedPromotions.length > 0 && (
-                              <Popover>
-                                <PopoverTrigger asChild>
-                                  <Button variant="outline" className="flex-1">
-                                    Choose from Library
-                                  </Button>
-                                </PopoverTrigger>
-                                <PopoverContent className="w-80">
-                                  <div className="space-y-2">
-                                    <h3 className="font-medium">Promotion Library</h3>
-                                    <div className="space-y-2 max-h-60 overflow-auto">
-                                      {savedPromotions.map((promotion) => (
-                                        <div
-                                          key={promotion.id}
-                                          className="flex items-center justify-between p-2 border rounded"
-                                        >
-                                          <div>
-                                            <p className="font-medium">{promotion.type}</p>
-                                            <p className="text-xs text-muted-foreground">
-                                              {promotion.discount} off · Valid until {new Date(promotion.validUntil).toLocaleDateString()}
-                                            </p>
-                                          </div>
-                                          <div className="flex items-center gap-1">
-                                            <Button 
-                                              variant="ghost" 
-                                              size="sm" 
-                                              onClick={() => handleEditPromotion(promotion)}
-                                            >
-                                              Edit
-                                            </Button>
-                                            <Button 
-                                              variant="ghost" 
-                                              size="sm" 
-                                              onClick={() => handleDeletePromotion(promotion.id)}
-                                            >
-                                              <X className="h-3.5 w-3.5" />
-                                            </Button>
-                                            <Button 
-                                              variant="outline" 
-                                              size="sm" 
-                                              onClick={() => handleApplyPromotion(promotion)}
-                                            >
-                                              Apply
-                                            </Button>
-                                          </div>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                </PopoverContent>
-                              </Popover>
-                            )}
                           </div>
                         </div>
                       ) : isCreatingPromotion ? (
@@ -1033,7 +1046,12 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                               <Button 
                                 variant="outline" 
                                 className="flex-1"
-                                onClick={() => setIsCreatingPromotion(false)}
+                                onClick={() => {
+                                  setIsCreatingPromotion(false);
+                                  setEditingPromotionId(null);
+                                  setPromotionName("");
+                                  setDiscountValue("");
+                                }}
                               >
                                 Choose from Library
                               </Button>
@@ -1050,33 +1068,39 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                                   {savedPromotions.map((promotion) => (
                                     <div
                                       key={promotion.id}
-                                      className="flex items-center justify-between p-2 border rounded"
+                                      className="flex justify-between items-center p-2 border border-zinc-700 rounded-lg bg-zinc-900 hover:bg-zinc-700/50 transition-colors"
                                     >
                                       <div>
-                                        <p className="font-medium">{promotion.type}</p>
-                                        <p className="text-xs text-muted-foreground">
+                                        <p className="font-medium text-gray-200">{promotion.type}</p>
+                                        <p className="text-sm text-gray-400">
                                           {promotion.discount} off · Valid until {new Date(promotion.validUntil).toLocaleDateString()}
                                         </p>
+                                        <p className="text-sm text-gray-400">
+                                          Savings: ${calculateDiscount(price, promotion).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </p>
                                       </div>
-                                      <div className="flex items-center gap-1">
-                                        <Button 
-                                          variant="ghost" 
-                                          size="sm" 
+                                      <div className="flex items-center gap-2">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
                                           onClick={() => handleEditPromotion(promotion)}
+                                          className="text-gray-400 hover:text-gray-200"
                                         >
                                           Edit
                                         </Button>
-                                        <Button 
-                                          variant="ghost" 
-                                          size="sm" 
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
                                           onClick={() => handleDeletePromotion(promotion.id)}
+                                          className="text-gray-400 hover:text-gray-200"
                                         >
-                                          <X className="h-3.5 w-3.5" />
+                                          <X className="h-4 w-4" />
                                         </Button>
-                                        <Button 
-                                          variant="outline" 
-                                          size="sm" 
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
                                           onClick={() => handleApplyPromotion(promotion)}
+                                          className="text-gray-200 hover:text-white border-zinc-700 hover:border-zinc-600"
                                         >
                                           Apply
                                         </Button>
