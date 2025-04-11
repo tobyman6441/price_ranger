@@ -733,6 +733,13 @@ export default function KanbanView() {
           <DropdownMenuTrigger asChild>
             <button
               className="px-3 sm:px-4 py-2 bg-accent text-accent-foreground text-xs sm:text-sm font-medium rounded-lg hover:bg-accent/80 transition-colors inline-flex items-center gap-2 w-full sm:w-auto justify-center"
+              ref={(node) => {
+                if (node) {
+                  node.addEventListener('click', () => {
+                    document.documentElement.style.setProperty('--trigger-width', `${node.getBoundingClientRect().width}px`);
+                  });
+                }
+              }}
             >
               <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -740,7 +747,7 @@ export default function KanbanView() {
               <span>New Opportunity</span>
             </button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
+          <DropdownMenuContent align="center" sideOffset={5} className="w-[var(--trigger-width)]">
             <DropdownMenuItem onClick={handleCreateBlankOpportunity}>
               + Blank opportunity
             </DropdownMenuItem>
