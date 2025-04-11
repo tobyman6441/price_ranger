@@ -102,9 +102,7 @@ export function FinanceOptionDialog({
   };
 
   // Delete a saved financing option
-  const handleDeleteTemplate = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    
+  const handleDeleteOption = (id: string) => {
     // Find the template to show in success message
     const templateToDelete = savedOptions.find(option => option.id === id);
     
@@ -142,7 +140,7 @@ export function FinanceOptionDialog({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-zinc-800 border-zinc-700">
         <DialogTitle>Financing Options</DialogTitle>
         
         {/* Success notification */}
@@ -159,7 +157,7 @@ export function FinanceOptionDialog({
         
         <div className="py-4 space-y-4">
           {/* "As Low As" Price Toggle */}
-          <div className="flex items-center justify-between pb-2 border-b">
+          <div className="flex items-center justify-between pb-2 border-b border-zinc-700">
             <div className="flex items-center gap-3">
               <Switch
                 checked={showAsLowAsPrice}
@@ -169,7 +167,7 @@ export function FinanceOptionDialog({
             </div>
             
             {showAsLowAsPrice && (
-              <div className="text-sm text-gray-600" key={`monthly-payment-${apr}-${termLength}`}>
+              <div className="text-sm text-gray-300" key={`monthly-payment-${apr}-${termLength}`}>
                 As low as ${monthlyPayment.toLocaleString('en-US', { maximumFractionDigits: 0 })}/month
               </div>
             )}
@@ -179,68 +177,59 @@ export function FinanceOptionDialog({
             <>
               {/* Saved Financing Templates Section */}
               {savedOptions.length > 0 && (
-                <div className="space-y-3 mb-6">
+                <div className="space-y-2">
                   <h3 className="text-sm font-medium border-b pb-2">Saved Templates</h3>
-                  <div className="max-h-60 overflow-y-auto space-y-2">
+                  <div className="space-y-2">
                     {savedOptions.map((option) => (
-                      <div 
+                      <div
                         key={option.id}
-                        className={`p-3 border rounded-md cursor-pointer transition-colors ${
-                          apr === option.apr && termLength === option.termLength
-                            ? 'bg-primary/10 border-primary/30'
-                            : 'hover:bg-gray-50'
-                        } ${activeTemplateId === option.id ? 'ring-2 ring-primary ring-offset-1' : ''}`}
-                        onClick={() => {
-                          setApr(option.apr);
-                          setTermLength(option.termLength);
-                        }}
+                        className="flex justify-between items-center p-2 border border-zinc-700 rounded-lg bg-zinc-900 hover:bg-zinc-700/50 transition-colors"
                       >
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <p className="font-medium">{option.name}</p>
-                            <p className="text-sm text-muted-foreground">
-                              {option.apr}% APR for {option.termLength} months
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              As low as ${calculateMonthlyPayment(price, option.apr, option.termLength).toLocaleString('en-US', { maximumFractionDigits: 0 })}/month
-                            </p>
-                            {activeTemplateId === option.id && (
-                              <p className="text-xs text-green-600 mt-1 font-medium">Currently Applied</p>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setApr(option.apr);
-                                setTermLength(option.termLength);
-                                // Auto-apply this template
-                                onSave({
-                                  price,
-                                  showAsLowAsPrice,
-                                  financingOption: {
-                                    id: option.id,
-                                    name: option.name,
-                                    apr: option.apr,
-                                    termLength: option.termLength
-                                  }
-                                });
-                                onClose();
-                              }}
-                            >
-                              <Check className="h-4 w-4" />
-                              <span className="ml-1">Apply</span>
-                            </Button>
-                            <Button 
-                              variant="ghost" 
-                              size="sm"
-                              onClick={(e) => handleDeleteTemplate(option.id, e)}
-                            >
-                              <Trash2 className="h-4 w-4 text-red-500" />
-                            </Button>
-                          </div>
+                        <div>
+                          <p className="font-medium text-gray-200">{option.name}</p>
+                          <p className="text-sm text-gray-400">
+                            {option.apr}% APR for {option.termLength} months
+                          </p>
+                          <p className="text-sm text-gray-400">
+                            As low as ${calculateMonthlyPayment(price, option.apr, option.termLength).toLocaleString('en-US', { maximumFractionDigits: 0 })}/month
+                          </p>
+                          {activeTemplateId === option.id && (
+                            <p className="text-xs text-green-500 mt-1 font-medium">Currently Applied</p>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteOption(option.id)}
+                            className="text-gray-400 hover:text-gray-200"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setApr(option.apr);
+                              setTermLength(option.termLength);
+                              // Auto-apply this template
+                              onSave({
+                                price,
+                                showAsLowAsPrice,
+                                financingOption: {
+                                  id: option.id,
+                                  name: option.name,
+                                  apr: option.apr,
+                                  termLength: option.termLength
+                                }
+                              });
+                              onClose();
+                            }}
+                            className="text-gray-200 hover:text-white border-zinc-700 hover:border-zinc-600"
+                          >
+                            Apply
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -249,8 +238,8 @@ export function FinanceOptionDialog({
               )}
 
               <div className="space-y-3">
-                <h3 className="text-sm font-medium border-b pb-2">Configure Financing</h3>
-                <p className="text-xs text-gray-500 mb-2">These settings determine the monthly payment calculation for "As low as" pricing.</p>
+                <h3 className="text-sm font-medium border-b border-zinc-700 pb-2">Configure Financing</h3>
+                <p className="text-xs text-gray-400 mb-2">These settings determine the monthly payment calculation for "As low as" pricing.</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="apr">APR %</Label>
@@ -261,10 +250,10 @@ export function FinanceOptionDialog({
                       onChange={(e) => {
                         const newApr = Number(e.target.value);
                         setApr(newApr);
-                        // Monthly payment will be recalculated automatically
                       }}
                       placeholder="Enter APR %"
                       step="0.01"
+                      className="bg-zinc-900 border-zinc-700"
                     />
                   </div>
                   
@@ -277,59 +266,69 @@ export function FinanceOptionDialog({
                       onChange={(e) => {
                         const newTermLength = Number(e.target.value);
                         setTermLength(newTermLength);
-                        // Monthly payment will be recalculated automatically
                       }}
                       placeholder="Enter term length"
+                      className="bg-zinc-900 border-zinc-700"
                     />
                   </div>
                 </div>
               </div>
               
-              <div className="flex justify-between mt-4">
-                <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline">
-                      Save to Library
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-md">
-                    <DialogTitle>Save Financing Option</DialogTitle>
-                    <div className="space-y-4 py-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="optionName">Financing Option Name</Label>
-                        <Input
-                          id="optionName"
-                          value={financingOptionName}
-                          onChange={(e) => setFinancingOptionName(e.target.value)}
-                          placeholder="Enter a name for this financing option"
-                        />
-                      </div>
-                      
-                      <div className="bg-muted p-3 rounded-md space-y-2">
-                        <p className="text-sm font-medium">Settings</p>
-                        <p className="text-sm">APR: {apr}%</p>
-                        <p className="text-sm">Term Length: {termLength} months</p>
-                      </div>
-                      
-                      <div className="flex justify-end space-x-2">
-                        <Button variant="outline" onClick={() => setIsSaveDialogOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button onClick={handleSaveFinancingOption} disabled={!financingOptionName}>
-                          Save
-                        </Button>
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-
-                <Button variant="default" onClick={handleSaveSettings}>
+              <div className="flex justify-end gap-3 pt-4">
+                <Button variant="outline" onClick={() => setIsSaveDialogOpen(true)} className="border-zinc-700 hover:bg-zinc-800">
+                  Save to Library
+                </Button>
+                <Button variant="outline" onClick={onClose} className="border-zinc-700 hover:bg-zinc-800">
+                  Cancel
+                </Button>
+                <Button onClick={handleSaveSettings}>
                   Apply Settings
                 </Button>
               </div>
             </>
           )}
         </div>
+
+        {/* Save Template Dialog */}
+        <Dialog open={isSaveDialogOpen} onOpenChange={setIsSaveDialogOpen}>
+          <DialogContent className="sm:max-w-md bg-zinc-800 border-zinc-700">
+            <DialogTitle>Save Financing Option</DialogTitle>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="optionName">Financing Option Name</Label>
+                <Input
+                  id="optionName"
+                  value={financingOptionName}
+                  onChange={(e) => setFinancingOptionName(e.target.value)}
+                  placeholder="Enter a name for this financing option"
+                  className="bg-zinc-900 border-zinc-700"
+                />
+              </div>
+              
+              <div className="bg-zinc-900 border border-zinc-700 p-3 rounded-md space-y-2">
+                <p className="text-sm font-medium text-gray-200">Settings</p>
+                <p className="text-sm text-gray-400">APR: {apr}%</p>
+                <p className="text-sm text-gray-400">Term Length: {termLength} months</p>
+              </div>
+              
+              <div className="flex justify-end space-x-2">
+                <Button 
+                  variant="outline" 
+                  onClick={() => setIsSaveDialogOpen(false)}
+                  className="border-zinc-700 hover:bg-zinc-800"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={handleSaveFinancingOption} 
+                  disabled={!financingOptionName}
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );

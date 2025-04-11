@@ -10,13 +10,16 @@ import Image from "next/image";
 import { calculateMonthlyPayment } from "@/app/utils/calculations";
 import { Switch } from "@/components/ui/switch"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { X } from "lucide-react";
+import { X, ThumbsUp, AlertTriangle } from "lucide-react";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { format } from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { FinanceOptionDialog } from './FinanceOptionDialog';
+import { PriceCalculatorDialog } from './PriceCalculatorDialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 
 interface Promotion {
   type: string;
@@ -47,6 +50,12 @@ interface EstimateDetailsProps {
     isApproved?: boolean;
     promotion?: Promotion;
     financingOption?: FinancingOption;
+    calculatedPriceDetails?: {
+      materialCost: number;
+      laborCost: number;
+      profitMargin: number;
+      totalPrice: number;
+    };
     options: Array<{
       id: number;
       content: string;
@@ -88,6 +97,12 @@ interface EstimateDetails {
   isApproved?: boolean;
   promotion?: Promotion;
   financingOption?: FinancingOption;
+  calculatedPriceDetails?: {
+    materialCost: number;
+    laborCost: number;
+    profitMargin: number;
+    totalPrice: number;
+  };
   options: Array<{
     id: number;
     content: string;
@@ -134,14 +149,18 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
 
   // Promotion states
   const [isPromotionEnabled, setIsPromotionEnabled] = useState(false);
-  const [promotionName, setPromotionName] = useState("");
+  const [promotionName, setPromotionName] = useState<string>("");
   const [discountType, setDiscountType] = useState<"percentage" | "fixed">("percentage");
-  const [discountValue, setDiscountValue] = useState("");
+  const [discountValue, setDiscountValue] = useState<string>("");
   const [savedPromotions, setSavedPromotions] = useState<Promotion[]>([]);
   const [activePromotion, setActivePromotion] = useState<Promotion | null>(null);
   const [validUntil, setValidUntil] = useState<Date>(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
   const [isCreatingPromotion, setIsCreatingPromotion] = useState(false);
   const [editingPromotionId, setEditingPromotionId] = useState<string | null>(null);
+  const [showPromotionForm, setShowPromotionForm] = useState(false);
+  const [showWarningMessage, setShowWarningMessage] = useState(false);
+  const [warningMessage, setWarningMessage] = useState("");
+  const [adjustedProfitMargin, setAdjustedProfitMargin] = useState<number | null>(null);
 
   // Financing options states
   const [isFinancingLibraryOpen, setIsFinancingLibraryOpen] = useState(false);
@@ -152,6 +171,15 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
   const [showFinanceOptionDialog, setShowFinanceOptionDialog] = useState(false);
+
+  // Price calculator states
+  const [showPriceCalculator, setShowPriceCalculator] = useState(false);
+  const [calculatedPriceDetails, setCalculatedPriceDetails] = useState<{
+    materialCost: number;
+    laborCost: number;
+    profitMargin: number;
+    totalPrice: number;
+  } | null>(null);
 
   // Load saved financing options from localStorage on initial render
   useEffect(() => {
@@ -206,11 +234,17 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
       setActivePromotion(promotion);
       setValidUntil(new Date(promotion.validUntil));
     }
+    
     // Set active financing option if it exists
     if (optionDetails.financingOption) {
       setActiveFinancingOption(optionDetails.financingOption);
       setApr(optionDetails.financingOption.apr);
       setTermLength(optionDetails.financingOption.termLength);
+    }
+
+    // Set calculated price details if they exist
+    if (optionDetails.calculatedPriceDetails) {
+      setCalculatedPriceDetails(optionDetails.calculatedPriceDetails);
     }
   }, [optionDetails]);
 
@@ -222,9 +256,121 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
   }, [isOpen]);
 
   const handleCalculate = () => {
-    // Set isCalculated to true when Calculate button is clicked
+    setShowPriceCalculator(true);
+  };
+
+  const handlePriceCalculated = (calculatedPrice: {
+    materialCost: number;
+    laborCost: number;
+    profitMargin: number;
+    totalPrice: number;
+  }) => {
+    setCalculatedPriceDetails(calculatedPrice);
+    setPrice(calculatedPrice.totalPrice);
+    setDisplayPrice(`$${calculatedPrice.totalPrice.toLocaleString('en-US', { 
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2 
+    })}`);
     setIsCalculated(true);
-    onCalculate();
+  };
+
+  // Add this function to check if a promotion would violate the minimum profit margin
+  const checkPromotionProfitMargin = (promotionDiscount: string) => {
+    if (!calculatedPriceDetails) return true;
+
+    const { materialCost, laborCost, profitMargin } = calculatedPriceDetails;
+    const totalCost = materialCost + laborCost;
+    
+    // Calculate the discounted price
+    const discountAmount = parseFloat(promotionDiscount.replace(/[^0-9.]/g, ''));
+    const isPercentage = promotionDiscount.includes('%');
+    const currentPrice = price;
+    
+    let discountedPrice = currentPrice;
+    if (isPercentage) {
+      discountedPrice = currentPrice * (1 - (discountAmount / 100));
+    } else {
+      discountedPrice = currentPrice - discountAmount;
+    }
+
+    // Calculate the new profit margin with the discount
+    const newProfitMargin = ((discountedPrice - totalCost) / discountedPrice) * 100;
+    
+    // Return true if the new profit margin is above the minimum (30%)
+    return newProfitMargin >= 30;
+  };
+
+  // Add this function to calculate the floor price
+  const calculateFloorPrice = () => {
+    if (!calculatedPriceDetails) return null;
+    const { materialCost, laborCost } = calculatedPriceDetails;
+    const totalCost = materialCost + laborCost;
+    // Calculate minimum price that maintains 30% profit margin
+    // If cost is 70% of price, then price = cost / 0.7
+    return totalCost / 0.7;
+  };
+
+  // Add this function to calculate adjusted profit margin
+  const calculateAdjustedProfitMargin = (promoDiscount: string) => {
+    if (!calculatedPriceDetails) return null;
+    
+    const { materialCost, laborCost } = calculatedPriceDetails;
+    const totalCost = materialCost + laborCost;
+    
+    let discountedPrice = price;
+    if (promoDiscount.includes('%')) {
+      const percentage = parseFloat(promoDiscount.replace('%', ''));
+      discountedPrice = price * (1 - percentage / 100);
+    } else {
+      const fixedAmount = parseFloat(promoDiscount.replace('$', ''));
+      discountedPrice = price - fixedAmount;
+    }
+    
+    return ((discountedPrice - totalCost) / discountedPrice) * 100;
+  };
+
+  // Modify handleSavePromotion to calculate adjusted margin
+  const handleSavePromotion = () => {
+    if (!promotionName || !discountValue) return;
+
+    // Check if the promotion would violate minimum profit margin
+    const promotionDiscount = discountType === "percentage" ? `${discountValue}%` : `$${discountValue}`;
+    if (!checkPromotionProfitMargin(promotionDiscount)) {
+      const floorPrice = calculateFloorPrice();
+      setWarningMessage(
+        `Cannot apply promotion: Would result in profit margin below 30% (Floor price: $${floorPrice?.toLocaleString('en-US', { 
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2 
+        })})`
+      );
+      setShowWarningMessage(true);
+      return;
+    }
+
+    // Calculate and set the adjusted profit margin
+    const adjustedMargin = calculateAdjustedProfitMargin(promotionDiscount);
+    setAdjustedProfitMargin(adjustedMargin);
+
+    const newPromotion: Promotion = {
+      type: promotionName,
+      discount: promotionDiscount,
+      validUntil: validUntil.toISOString(),
+      id: editingPromotionId || Date.now().toString()
+    };
+
+    if (editingPromotionId) {
+      setSavedPromotions(savedPromotions.map(p => 
+        p.id === editingPromotionId ? newPromotion : p
+      ));
+      setEditingPromotionId(null);
+    } else {
+      setSavedPromotions([...savedPromotions, newPromotion]);
+    }
+    
+    setActivePromotion(newPromotion);
+    setPromotionName("");
+    setDiscountValue("");
+    setIsCreatingPromotion(false);
   };
 
   const handleImageSourceSelect = (source: string) => {
@@ -267,6 +413,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
       promotion: activePromotion || undefined,
       financingOption: activeFinancingOption || undefined,
       options: optionDetails?.options || [],
+      calculatedPriceDetails: calculatedPriceDetails || undefined
     };
     
     onSave(details);
@@ -290,6 +437,20 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
         minimumFractionDigits: 2,
         maximumFractionDigits: 2 
       })}`);
+
+      // If we have calculated price details, update the profit margin
+      if (calculatedPriceDetails) {
+        const { materialCost, laborCost } = calculatedPriceDetails;
+        const totalCost = materialCost + laborCost;
+        if (totalCost > 0) {
+          const newProfitMargin = ((numericValue - totalCost) / numericValue) * 100;
+          setCalculatedPriceDetails({
+            ...calculatedPriceDetails,
+            profitMargin: Math.round(newProfitMargin),
+            totalPrice: numericValue
+          });
+        }
+      }
     }
   };
 
@@ -315,33 +476,6 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
 
   const handlePrevImage = () => {
     setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
-  };
-
-  const handleSavePromotion = () => {
-    if (!promotionName || !discountValue) return;
-
-    const newPromotion: Promotion = {
-      type: promotionName,
-      discount: discountType === "percentage" ? `${discountValue}%` : `$${discountValue}`,
-      validUntil: validUntil.toISOString(),
-      id: editingPromotionId || Date.now().toString() // Use existing ID or create new one
-    };
-
-    if (editingPromotionId) {
-      // Update existing promotion
-      setSavedPromotions(savedPromotions.map(p => 
-        p.id === editingPromotionId ? newPromotion : p
-      ));
-      setEditingPromotionId(null);
-    } else {
-      // Add new promotion
-      setSavedPromotions([...savedPromotions, newPromotion]);
-    }
-    
-    setActivePromotion(newPromotion);
-    setPromotionName("");
-    setDiscountValue("");
-    setIsCreatingPromotion(false);
   };
 
   const handleEditPromotion = (promotion: Promotion) => {
@@ -532,6 +666,24 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
     setShowFinanceOptionDialog(false);
   };
 
+  // Add this function to validate discount in real-time
+  const validateDiscount = (value: string): string | null => {
+    if (!value || !calculatedPriceDetails) return null;
+    
+    const promotionDiscount = discountType === "percentage" ? `${value}%` : `$${value}`;
+    if (!checkPromotionProfitMargin(promotionDiscount)) {
+      const floorPrice = calculateFloorPrice();
+      if (discountType === "percentage") {
+        const maxPercentage = ((price - (floorPrice || 0)) / price) * 100;
+        return `Maximum allowed: ${maxPercentage.toFixed(1)}%`;
+      } else {
+        const maxDiscount = price - (floorPrice || 0);
+        return `Maximum allowed: $${maxDiscount.toLocaleString('en-US', { maximumFractionDigits: 2 })}`;
+      }
+    }
+    return null;
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={() => onClose()}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-zinc-900 border-zinc-800">
@@ -553,47 +705,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
           </div>
         </DialogTitle>
         
-        {/* Success notification */}
-        {showSuccessMessage && (
-          <div className="fixed top-4 right-4 z-50 bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded shadow-md">
-            <div className="flex items-center">
-              <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <span>{successMessage}</span>
-            </div>
-          </div>
-        )}
-        
         <div className="flex flex-col h-full space-y-6 overflow-hidden">
-          {/* Top Action Button */}
-          <div className="flex justify-between items-center flex-shrink-0 bg-zinc-800/50 p-4 rounded-lg">
-            <div className="flex gap-2">
-              <Button
-                onClick={handleCalculate}
-                className="bg-primary/80 text-primary-foreground/90 hover:bg-primary/70 whitespace-nowrap text-sm px-3 py-1.5 font-medium"
-              >
-                Calculate price
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => window.open('https://hover.to/ehi/#/project/15273950/scope?orgId=823697&productionListId=465247', '_blank')}
-                className={`whitespace-nowrap text-sm px-3 py-1.5 bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground border-border/50 ${!isCalculated ? 'opacity-50 cursor-not-allowed' : ''}`}
-                disabled={!isCalculated}
-              >
-                View calculations
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => window.open('https://hover.to/ehi/#/project_estimator/questions/facets/select_roof_facets?jobId=15273950&productionListId=465247&recalculate=true&templateIds=1247492,1254707', '_blank')}
-                className={`whitespace-nowrap text-sm px-3 py-1.5 bg-muted/30 text-muted-foreground hover:bg-muted/50 hover:text-foreground border-border/50 ${!isCalculated ? 'opacity-50 cursor-not-allowed' : ''}`}
-                disabled={!isCalculated}
-              >
-                Edit Scope
-              </Button>
-            </div>
-          </div>
-
           <div className="flex-1 overflow-y-auto pr-2">
             <div className="space-y-6">
               {/* Image Section */}
@@ -657,15 +769,23 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                 <div className="flex flex-col gap-6">
                   <div className="space-y-2">
                     <Label className="text-muted-foreground/80">Total Price</Label>
-                    <Input
-                      type="text"
-                      value={isEditingPrice ? editingPrice : displayPrice}
-                      onChange={handlePriceChange}
-                      onFocus={handlePriceFocus}
-                      onBlur={handlePriceBlur}
-                      placeholder="0.00"
-                      className="text-2xl font-bold text-muted-foreground/90 bg-background/50"
-                    />
+                    <div className="flex items-center gap-4">
+                      <Input
+                        type="text"
+                        value={isEditingPrice ? editingPrice : displayPrice}
+                        onChange={handlePriceChange}
+                        onFocus={handlePriceFocus}
+                        onBlur={handlePriceBlur}
+                        placeholder="0.00"
+                        className="text-2xl font-bold text-muted-foreground/90 bg-background/50 flex-1"
+                      />
+                      <Button
+                        onClick={handleCalculate}
+                        className="bg-primary/80 text-primary-foreground/90 hover:bg-primary/70 whitespace-nowrap text-sm font-medium"
+                      >
+                        Calculate price
+                      </Button>
+                    </div>
                   </div>
                   
                   {/* Promotion Toggle */}
@@ -684,6 +804,28 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                     )}
                   </div>
 
+                  {/* Warning notification */}
+                  {showWarningMessage && (
+                    <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-3 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center">
+                          <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                          <span>{warningMessage}</span>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setShowWarningMessage(false)}
+                          className="ml-4 hover:bg-yellow-200"
+                        >
+                          <ThumbsUp className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                  
                   {/* Promotion Form */}
                   {isPromotionEnabled && (
                     <div className="space-y-4 border border-zinc-800 rounded-lg p-4 bg-zinc-800/30">
@@ -699,7 +841,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                             <div className="space-y-1">
                               <p className="font-medium">{activePromotion.type}</p>
                               <p className="text-sm text-muted-foreground">
-                                {activePromotion.discount} off
+                                ${parseFloat(activePromotion.discount.replace(/[^0-9.]/g, '')).toLocaleString('en-US')} off
                               </p>
                               <p className="text-sm font-medium text-green-600">
                                 Savings: ${calculateDiscount(price, activePromotion).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -707,6 +849,14 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                               <p className="text-lg font-bold">
                                 Final Price: ${(price - calculateDiscount(price, activePromotion)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                               </p>
+                              {adjustedProfitMargin !== null && (
+                                <p className={cn(
+                                  "text-sm",
+                                  adjustedProfitMargin < 30 ? "text-red-500" : "text-green-500"
+                                )}>
+                                  Adjusted Profit Margin: {adjustedProfitMargin.toFixed(1)}%
+                                </p>
+                              )}
                               <p className="text-xs text-gray-500">
                                 Valid until {new Date(activePromotion.validUntil).toLocaleDateString()}
                               </p>
@@ -823,15 +973,25 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                           </div>
 
                           <div className="space-y-2">
-                            <Label htmlFor="discountValue">
-                              {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
-                            </Label>
+                            <div className="flex items-center justify-between">
+                              <Label htmlFor="discountValue">
+                                {discountType === "percentage" ? "Discount Percentage" : "Discount Amount"}
+                              </Label>
+                              {discountValue && validateDiscount(discountValue) && (
+                                <span className="text-sm text-red-500">
+                                  {validateDiscount(discountValue)}
+                                </span>
+                              )}
+                            </div>
                             <Input
                               id="discountValue"
                               type="number"
                               value={discountValue}
                               onChange={(e) => setDiscountValue(e.target.value)}
                               placeholder={discountType === "percentage" ? "Enter percentage" : "Enter amount"}
+                              className={cn(
+                                discountValue && validateDiscount(discountValue) && "border-red-500 focus-visible:ring-red-500"
+                              )}
                             />
                           </div>
 
@@ -1196,6 +1356,17 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
           initialApr={apr}
           initialTermLength={termLength}
           activeTemplateId={activeFinancingOption?.id}
+        />
+
+        {/* Add the PriceCalculatorDialog */}
+        <PriceCalculatorDialog
+          isOpen={showPriceCalculator}
+          onClose={() => setShowPriceCalculator(false)}
+          onCalculate={handlePriceCalculated}
+          defaultProfitMargin={calculatedPriceDetails?.profitMargin || 75}
+          currentPrice={price}
+          initialMaterialCost={calculatedPriceDetails?.materialCost}
+          initialLaborCost={calculatedPriceDetails?.laborCost}
         />
       </DialogContent>
     </Dialog>

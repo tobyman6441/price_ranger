@@ -275,11 +275,11 @@ export function PriceSummary({ options, operators }: PriceSummaryProps) {
                         )}
                         {hasPromotion && (
                           <div className="flex items-center gap-2">
-                            <Badge variant="secondary" className="text-[10px] font-normal bg-purple-100 text-purple-700 hover:bg-purple-100">
+                            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
                               {opt.promotion!.type}
                             </Badge>
                             <span className="text-sm text-gray-500">
-                              ${originalPrice.toLocaleString()} → ${discountedPrice.toLocaleString()}
+                              ${parseFloat(opt.promotion!.discount.replace(/[^0-9.]/g, '')).toLocaleString('en-US')} → ${discountedPrice.toLocaleString()}
                             </span>
                           </div>
                         )}

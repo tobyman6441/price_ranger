@@ -1067,7 +1067,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
                                         <Badge variant="secondary" className="bg-purple-100 text-purple-700">
                                           {option.promotion.type}
                                         </Badge>
-                                        <span className="text-xs text-purple-700">{option.promotion.discount}</span>
+                                        <span className="text-xs text-purple-700">${parseFloat(option.promotion.discount.replace(/[^0-9.]/g, '')).toLocaleString('en-US')}</span>
                                       </div>
                                       <div className="flex flex-col">
                                         <span className="text-sm text-muted-foreground line-through">

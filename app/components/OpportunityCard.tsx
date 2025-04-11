@@ -114,8 +114,8 @@ export function OpportunityCard({
       if (discountedMinPrice === discountedMaxPrice) {
         return (
           <div className="flex flex-col">
-            <span className="text-gray-500 line-through">${minPrice.toLocaleString()}</span>
-            <span className="text-green-600">${discountedMinPrice.toLocaleString()}</span>
+            <span className="text-gray-500 line-through">${minPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            <span className="text-green-600">${discountedMinPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
         )
       }
@@ -123,10 +123,10 @@ export function OpportunityCard({
       return (
         <div className="flex flex-col">
           <span className="text-gray-500 line-through">
-            ${minPrice.toLocaleString()} - ${maxPrice.toLocaleString()}
+            ${minPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - ${maxPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
           <span className="text-green-600">
-            ${discountedMinPrice.toLocaleString()} - ${discountedMaxPrice.toLocaleString()}
+            ${discountedMinPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - ${discountedMaxPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </div>
       )
@@ -134,10 +134,10 @@ export function OpportunityCard({
 
     // Original price display without promotion
     if (minPrice === maxPrice) {
-      return `$${minPrice.toLocaleString()}`
+      return `$${minPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
     }
 
-    return `$${minPrice.toLocaleString()} - $${maxPrice.toLocaleString()}`
+    return `$${minPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} - $${maxPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
   }
 
   const getOptionSummary = () => {
