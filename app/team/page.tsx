@@ -264,6 +264,7 @@ export default function TeamPage() {
                   value={formData.first_name}
                   onChange={(e) => setFormData(prev => ({ ...prev, first_name: e.target.value }))}
                   required
+                  style={{backgroundColor: "#121212"}}
                 />
               </div>
               <div className="space-y-2">
@@ -273,6 +274,7 @@ export default function TeamPage() {
                   value={formData.last_name}
                   onChange={(e) => setFormData(prev => ({ ...prev, last_name: e.target.value }))}
                   required
+                  style={{backgroundColor: "#121212"}}
                 />
               </div>
               <div className="space-y-2">
@@ -283,6 +285,7 @@ export default function TeamPage() {
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   required
+                  style={{backgroundColor: "#121212"}}
                 />
               </div>
               <div className="space-y-2">
@@ -292,6 +295,7 @@ export default function TeamPage() {
                   type="tel"
                   value={formData.phone_number}
                   onChange={(e) => setFormData(prev => ({ ...prev, phone_number: e.target.value }))}
+                  style={{backgroundColor: "#121212"}}
                 />
               </div>
               <div className="space-y-2 sm:col-span-2">

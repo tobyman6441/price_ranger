@@ -17,7 +17,7 @@ export default function LoginPage() {
         <p className="text-center text-lg text-muted-foreground max-w-md">
           A simple and flexible tool for{' '}
           <br />
-          home improvement price presentations
+          pricing home improvement projects
         </p>
       </div>
       <LoginForm />

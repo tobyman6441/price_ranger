@@ -69,6 +69,7 @@ export function SignUpForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                style={{backgroundColor: "#121212"}}
               />
             </div>
             <div className="flex flex-col space-y-1.5">
@@ -80,6 +81,7 @@ export function SignUpForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                style={{backgroundColor: "#121212"}}
               />
             </div>
             <div className="flex flex-row items-start space-x-2 whitespace-nowrap">

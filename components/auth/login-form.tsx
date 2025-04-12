@@ -64,6 +64,7 @@ export function LoginForm() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full"
+                style={{backgroundColor: "#121212"}}
               />
             </div>
             <div className="flex flex-col space-y-1.5">
@@ -76,6 +77,7 @@ export function LoginForm() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 className="w-full"
+                style={{backgroundColor: "#121212"}}
               />
             </div>
           </div>
