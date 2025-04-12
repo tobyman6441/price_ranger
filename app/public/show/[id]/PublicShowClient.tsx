@@ -16,6 +16,8 @@ interface Option {
   price?: number;
   afterImage: string;
   beforeImage?: string;
+  beforeImages?: string[];
+  afterImages?: string[];
   materials?: Array<{
     id: number;
     title: string;
@@ -39,6 +41,8 @@ interface Option {
     description: string;
     afterImage: string;
     beforeImage?: string;
+    beforeImages?: string[];
+    afterImages?: string[];
     address?: string;
     materials?: Array<{
       id: number;
@@ -73,6 +77,7 @@ export default function PublicShowClient({ id }: PageProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedOptionId, setSelectedOptionId] = useState<number | null>(null);
   const [isSliderVisible, setIsSliderVisible] = useState(false);
+  const [currentImageIndices, setCurrentImageIndices] = useState<{[key: number]: number}>({});
 
   const calculateDiscount = (price: number, promotion: { type: string, discount: string }) => {
     const discountAmount = parseFloat(promotion.discount.replace(/[^0-9.]/g, ''))
@@ -98,6 +103,13 @@ export default function PublicShowClient({ id }: PageProps) {
         setShowData(data);
         if (data.options.length > 0) {
           setSelectedOptionId(data.options[0].id);
+          
+          // Initialize image indices for each option
+          const initialIndices: {[key: number]: number} = {};
+          data.options.forEach((opt: Option) => {
+            initialIndices[opt.id] = 0;
+          });
+          setCurrentImageIndices(initialIndices);
         }
 
         // Save to localStorage
@@ -116,6 +128,13 @@ export default function PublicShowClient({ id }: PageProps) {
           setShowData(data);
           if (data.options.length > 0) {
             setSelectedOptionId(data.options[0].id);
+            
+            // Initialize image indices for each option
+            const initialIndices: {[key: number]: number} = {};
+            data.options.forEach((opt: Option) => {
+              initialIndices[opt.id] = 0;
+            });
+            setCurrentImageIndices(initialIndices);
           }
         } catch (error) {
           console.error('Error parsing stored data:', error);
@@ -124,6 +143,57 @@ export default function PublicShowClient({ id }: PageProps) {
     }
     setIsLoading(false);
   }, [id]);
+
+  // Get either before or after images for an option
+  const getImagesByType = (option: Option, type: 'before' | 'after') => {
+    if (type === 'before') {
+      // Return beforeImages array if it exists, otherwise use single beforeImage
+      return option.details?.beforeImages && option.details.beforeImages.length > 0
+        ? option.details.beforeImages
+        : option.details?.beforeImage 
+          ? [option.details.beforeImage] 
+          : [];
+    } else {
+      // Return afterImages array if it exists, otherwise use single afterImage
+      return option.details?.afterImages && option.details.afterImages.length > 0
+        ? option.details.afterImages
+        : option.details?.afterImage 
+          ? [option.details.afterImage] 
+          : [];
+    }
+  };
+
+  // Navigate to next image
+  const nextImage = (optionId: number, type: 'before' | 'after') => {
+    if (!showData) return;
+    
+    const option = showData.options.find(opt => opt.id === optionId);
+    if (!option) return;
+    
+    const images = getImagesByType(option, type);
+    if (images.length <= 1) return;
+    
+    setCurrentImageIndices(prev => ({
+      ...prev,
+      [optionId]: (prev[optionId] + 1) % images.length
+    }));
+  };
+
+  // Navigate to previous image
+  const prevImage = (optionId: number, type: 'before' | 'after') => {
+    if (!showData) return;
+    
+    const option = showData.options.find(opt => opt.id === optionId);
+    if (!option) return;
+    
+    const images = getImagesByType(option, type);
+    if (images.length <= 1) return;
+    
+    setCurrentImageIndices(prev => ({
+      ...prev,
+      [optionId]: (prev[optionId] - 1 + images.length) % images.length
+    }));
+  };
 
   if (isLoading) {
     return (
@@ -178,103 +248,152 @@ export default function PublicShowClient({ id }: PageProps) {
 
             {/* Package Options */}
             <div className="space-y-12">
-              {showData.options.map((option, index) => (
-                <div key={option.id} className="space-y-6">
-                  {/* Option Images */}
-                  <div className="relative w-full aspect-[16/9] rounded-lg overflow-hidden">
-                    <Image
-                      src={isSliderVisible ? option.details?.beforeImage || "" : option.details?.afterImage || ""}
-                      alt={isSliderVisible ? "Before" : "After"}
-                      fill
-                      className="object-contain"
-                      priority={index === 0}
-                    />
-                  </div>
+              {showData.options.map((option, index) => {
+                const currentType = isSliderVisible ? 'before' : 'after';
+                const images = getImagesByType(option, currentType);
+                const currentImageIndex = currentImageIndices[option.id] || 0;
+                const hasMultipleImages = images.length > 1;
+                
+                return (
+                  <div key={option.id} className="space-y-6">
+                    {/* Option Images */}
+                    <div className="relative w-full aspect-[16/9] rounded-lg overflow-hidden">
+                      {images.length > 0 ? (
+                        <>
+                          <Image
+                            src={images[currentImageIndex]}
+                            alt={currentType === 'before' ? "Before" : "After"}
+                            fill
+                            className="object-contain"
+                            priority={index === 0}
+                          />
+                          
+                          {/* Image Type Label */}
+                          <div className="absolute top-2 left-2 px-3 py-1.5 rounded-full text-xs font-medium bg-black/60 text-white">
+                            {currentType === 'before' ? (
+                              <span className="text-blue-300">Before</span>
+                            ) : (
+                              <span className="text-green-300">After</span>
+                            )}
+                            {hasMultipleImages && (
+                              <span className="ml-2 text-white/80">
+                                {currentImageIndex + 1}/{images.length}
+                              </span>
+                            )}
+                          </div>
+                          
+                          {/* Navigation Arrows (only show if multiple images) */}
+                          {hasMultipleImages && (
+                            <>
+                              <button
+                                onClick={() => prevImage(option.id, currentType)}
+                                className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                                aria-label="Previous image"
+                              >
+                                ←
+                              </button>
+                              <button
+                                onClick={() => nextImage(option.id, currentType)}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                                aria-label="Next image"
+                              >
+                                →
+                              </button>
+                            </>
+                          )}
+                        </>
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gray-100 text-gray-400">
+                          No {currentType} image available
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Option Title and Description */}
-                  <div className="text-center">
-                    <h2 className="text-2xl font-bold">{option.details?.title || option.content}</h2>
-                    {option.details?.description && (
-                      <p className="mt-2 text-gray-600">{option.details.description}</p>
+                    {/* Option Title and Description */}
+                    <div className="text-center">
+                      <h2 className="text-2xl font-bold">{option.details?.title || option.content}</h2>
+                      {option.details?.description && (
+                        <p className="mt-2 text-gray-600">{option.details.description}</p>
+                      )}
+                    </div>
+
+                    {/* Materials (if any) */}
+                    {option.details?.materials && option.details.materials.length > 0 && (
+                      <div className="space-y-4">
+                        <h3 className="text-xl font-semibold text-center">Materials</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {option.details.materials.map((material) => (
+                            <div key={material.id} className="p-4 bg-gray-50 rounded-lg">
+                              <h4 className="font-medium">{material.title}</h4>
+                              <p className="text-sm text-gray-600">{material.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Price Information */}
+                    {option.details?.price && (
+                      <div className="border-t pt-6">
+                        <div className="flex flex-col items-center gap-4">
+                          {option.promotion ? (
+                            <>
+                              <div className="flex items-center gap-2">
+                                <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+                                  {option.promotion.type}
+                                </Badge>
+                              </div>
+                              <div className="flex flex-col items-center">
+                                <div className="flex items-center gap-3">
+                                  <span className="text-2xl text-gray-500 line-through">
+                                    ${option.details.price.toLocaleString()}
+                                  </span>
+                                  <span className="text-3xl font-bold">
+                                    ${(option.details.price - calculateDiscount(option.details.price, option.promotion)).toLocaleString()}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 mt-1 text-green-600">
+                                  <span className="font-medium">Save {option.promotion.discount}</span>
+                                  <span className="text-sm text-gray-500">
+                                    (Valid until {new Date(option.promotion.validUntil).toLocaleDateString()})
+                                  </span>
+                                </div>
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-3xl font-bold">
+                              ${option.details.price.toLocaleString()}
+                            </div>
+                          )}
+                          {option.showAsLowAsPrice !== false && (
+                            <>
+                              <div className="text-lg text-gray-600">
+                                As low as ${calculateMonthlyPayment(
+                                  option.promotion 
+                                    ? option.details.price - calculateDiscount(option.details.price, option.promotion)
+                                    : option.details.price,
+                                  option.details.financeSettings?.apr || 6.99,
+                                  option.details.financeSettings?.termLength || 60
+                                ).toLocaleString()}/month
+                              </div>
+                              {option.details.financeSettings && (
+                                <div className="text-sm text-gray-500">
+                                  {option.details.financeSettings.apr}% APR for {option.details.financeSettings.termLength} months
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Divider between options */}
+                    {index < showData.options.length - 1 && (
+                      <div className="border-b border-gray-200" />
                     )}
                   </div>
-
-                  {/* Materials (if any) */}
-                  {option.details?.materials && option.details.materials.length > 0 && (
-                    <div className="space-y-4">
-                      <h3 className="text-xl font-semibold text-center">Materials</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {option.details.materials.map((material) => (
-                          <div key={material.id} className="p-4 bg-gray-50 rounded-lg">
-                            <h4 className="font-medium">{material.title}</h4>
-                            <p className="text-sm text-gray-600">{material.description}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Price Information */}
-                  {option.details?.price && (
-                    <div className="border-t pt-6">
-                      <div className="flex flex-col items-center gap-4">
-                        {option.promotion ? (
-                          <>
-                            <div className="flex items-center gap-2">
-                              <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-                                {option.promotion.type}
-                              </Badge>
-                            </div>
-                            <div className="flex flex-col items-center">
-                              <div className="flex items-center gap-3">
-                                <span className="text-2xl text-gray-500 line-through">
-                                  ${option.details.price.toLocaleString()}
-                                </span>
-                                <span className="text-3xl font-bold">
-                                  ${(option.details.price - calculateDiscount(option.details.price, option.promotion)).toLocaleString()}
-                                </span>
-                              </div>
-                              <div className="flex items-center gap-2 mt-1 text-green-600">
-                                <span className="font-medium">Save {option.promotion.discount}</span>
-                                <span className="text-sm text-gray-500">
-                                  (Valid until {new Date(option.promotion.validUntil).toLocaleDateString()})
-                                </span>
-                              </div>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="text-3xl font-bold">
-                            ${option.details.price.toLocaleString()}
-                          </div>
-                        )}
-                        {option.showAsLowAsPrice !== false && (
-                          <>
-                            <div className="text-lg text-gray-600">
-                              As low as ${calculateMonthlyPayment(
-                                option.promotion 
-                                  ? option.details.price - calculateDiscount(option.details.price, option.promotion)
-                                  : option.details.price,
-                                option.details.financeSettings?.apr || 6.99,
-                                option.details.financeSettings?.termLength || 60
-                              ).toLocaleString()}/month
-                            </div>
-                            {option.details.financeSettings && (
-                              <div className="text-sm text-gray-500">
-                                {option.details.financeSettings.apr}% APR for {option.details.financeSettings.termLength} months
-                              </div>
-                            )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Divider between options */}
-                  {index < showData.options.length - 1 && (
-                    <div className="border-b border-gray-200" />
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </Card>

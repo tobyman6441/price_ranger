@@ -25,6 +25,9 @@ interface Option {
     description: string
     price: number
     afterImage: string
+    beforeImage?: string
+    beforeImages?: string[]
+    afterImages?: string[]
     materials?: {
       id: number
       title: string
@@ -49,6 +52,7 @@ export default function PublicComparePage() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [carouselApi, setCarouselApi] = useState<CarouselApi>()
+  const [currentImageIndices, setCurrentImageIndices] = useState<Record<string, number>>({})
 
   useEffect(() => {
     // In design mode, we'll use mock data
@@ -215,6 +219,47 @@ export default function PublicComparePage() {
     }
   })
 
+  // Get either before or after images for an option
+  const getImagesByType = (option: Option, type: 'before' | 'after') => {
+    if (type === 'before') {
+      // Return beforeImages array if it exists, otherwise use single beforeImage
+      return option.details?.beforeImages && option.details.beforeImages.length > 0
+        ? option.details.beforeImages
+        : option.details?.beforeImage 
+          ? [option.details.beforeImage] 
+          : [];
+    } else {
+      // Return afterImages array if it exists, otherwise use single afterImage
+      return option.details?.afterImages && option.details.afterImages.length > 0
+        ? option.details.afterImages
+        : option.details?.afterImage 
+          ? [option.details.afterImage] 
+          : [];
+    }
+  };
+
+  // Navigate to next image
+  const nextImage = (optionId: number, type: 'before' | 'after') => {
+    const images = getImagesByType(options.find(opt => opt.id === optionId)!, type);
+    if (images.length <= 1) return;
+    
+    setCurrentImageIndices(prev => ({
+      ...prev,
+      [`${optionId}_${type}`]: (prev[`${optionId}_${type}`] || 0 + 1) % images.length
+    }));
+  };
+
+  // Navigate to previous image
+  const prevImage = (optionId: number, type: 'before' | 'after') => {
+    const images = getImagesByType(options.find(opt => opt.id === optionId)!, type);
+    if (images.length <= 1) return;
+    
+    setCurrentImageIndices(prev => ({
+      ...prev,
+      [`${optionId}_${type}`]: (prev[`${optionId}_${type}`] || 0 - 1 + images.length) % images.length
+    }));
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -255,14 +300,107 @@ export default function PublicComparePage() {
                             </Badge>
                           )}
                         </div>
-                        {opt.details?.afterImage && (
+                        {/* Before Images */}
+                        {(opt.details?.beforeImage || (opt.details?.beforeImages && opt.details.beforeImages.length > 0)) && (
                           <div className="relative aspect-video rounded-lg overflow-hidden">
-                            <Image
-                              src={opt.details.afterImage}
-                              alt={opt.details.title}
-                              fill
-                              className="object-cover"
-                            />
+                            {(() => {
+                              const beforeImages = getImagesByType(opt, 'before');
+                              const currentBeforeIndex = currentImageIndices[`${opt.id}_before`] || 0;
+                              const hasMultipleBeforeImages = beforeImages.length > 1;
+                              
+                              return (
+                                <>
+                                  <Image
+                                    src={beforeImages[currentBeforeIndex]}
+                                    alt={`${opt.details?.title || ''} (Before)`}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                  
+                                  {/* Image Type Label */}
+                                  <div className="absolute top-2 left-2 px-3 py-1.5 rounded-full text-xs font-medium bg-black/60 text-white">
+                                    <span className="text-blue-300">Before</span>
+                                    {hasMultipleBeforeImages && (
+                                      <span className="ml-2 text-white/80">
+                                        {currentBeforeIndex + 1}/{beforeImages.length}
+                                      </span>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Navigation Arrows */}
+                                  {hasMultipleBeforeImages && (
+                                    <>
+                                      <button
+                                        onClick={() => prevImage(opt.id, 'before')}
+                                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                                        aria-label="Previous image"
+                                      >
+                                        ←
+                                      </button>
+                                      <button
+                                        onClick={() => nextImage(opt.id, 'before')}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                                        aria-label="Next image"
+                                      >
+                                        →
+                                      </button>
+                                    </>
+                                  )}
+                                </>
+                              );
+                            })()}
+                          </div>
+                        )}
+
+                        {/* After Images */}
+                        {(opt.details?.afterImage || (opt.details?.afterImages && opt.details.afterImages.length > 0)) && (
+                          <div className="relative aspect-video rounded-lg overflow-hidden">
+                            {(() => {
+                              const afterImages = getImagesByType(opt, 'after');
+                              const currentAfterIndex = currentImageIndices[`${opt.id}_after`] || 0;
+                              const hasMultipleAfterImages = afterImages.length > 1;
+                              
+                              return (
+                                <>
+                                  <Image
+                                    src={afterImages[currentAfterIndex]}
+                                    alt={`${opt.details?.title || ''} (After)`}
+                                    fill
+                                    className="object-cover"
+                                  />
+                                  
+                                  {/* Image Type Label */}
+                                  <div className="absolute top-2 left-2 px-3 py-1.5 rounded-full text-xs font-medium bg-black/60 text-white">
+                                    <span className="text-green-300">After</span>
+                                    {hasMultipleAfterImages && (
+                                      <span className="ml-2 text-white/80">
+                                        {currentAfterIndex + 1}/{afterImages.length}
+                                      </span>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Navigation Arrows */}
+                                  {hasMultipleAfterImages && (
+                                    <>
+                                      <button
+                                        onClick={() => prevImage(opt.id, 'after')}
+                                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                                        aria-label="Previous image"
+                                      >
+                                        ←
+                                      </button>
+                                      <button
+                                        onClick={() => nextImage(opt.id, 'after')}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                                        aria-label="Next image"
+                                      >
+                                        →
+                                      </button>
+                                    </>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </div>
                         )}
                         <p className="text-sm text-gray-600">{opt.details?.description}</p>
@@ -320,14 +458,107 @@ export default function PublicComparePage() {
                                       </Badge>
                                     )}
                                   </div>
-                                  {opt.details?.afterImage && (
+                                  {/* Before Images */}
+                                  {(opt.details?.beforeImage || (opt.details?.beforeImages && opt.details.beforeImages.length > 0)) && (
                                     <div className="relative aspect-video rounded-lg overflow-hidden">
-                                      <Image
-                                        src={opt.details.afterImage}
-                                        alt={opt.details.title}
-                                        fill
-                                        className="object-cover"
-                                      />
+                                      {(() => {
+                                        const beforeImages = getImagesByType(opt, 'before');
+                                        const currentBeforeIndex = currentImageIndices[`${opt.id}_before`] || 0;
+                                        const hasMultipleBeforeImages = beforeImages.length > 1;
+                                        
+                                        return (
+                                          <>
+                                            <Image
+                                              src={beforeImages[currentBeforeIndex]}
+                                              alt={`${opt.details?.title || ''} (Before)`}
+                                              fill
+                                              className="object-cover"
+                                            />
+                                            
+                                            {/* Image Type Label */}
+                                            <div className="absolute top-2 left-2 px-3 py-1.5 rounded-full text-xs font-medium bg-black/60 text-white">
+                                              <span className="text-blue-300">Before</span>
+                                              {hasMultipleBeforeImages && (
+                                                <span className="ml-2 text-white/80">
+                                                  {currentBeforeIndex + 1}/{beforeImages.length}
+                                                </span>
+                                              )}
+                                            </div>
+                                            
+                                            {/* Navigation Arrows */}
+                                            {hasMultipleBeforeImages && (
+                                              <>
+                                                <button
+                                                  onClick={() => prevImage(opt.id, 'before')}
+                                                  className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                                                  aria-label="Previous image"
+                                                >
+                                                  ←
+                                                </button>
+                                                <button
+                                                  onClick={() => nextImage(opt.id, 'before')}
+                                                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                                                  aria-label="Next image"
+                                                >
+                                                  →
+                                                </button>
+                                              </>
+                                            )}
+                                          </>
+                                        );
+                                      })()}
+                                    </div>
+                                  )}
+
+                                  {/* After Images */}
+                                  {(opt.details?.afterImage || (opt.details?.afterImages && opt.details.afterImages.length > 0)) && (
+                                    <div className="relative aspect-video rounded-lg overflow-hidden">
+                                      {(() => {
+                                        const afterImages = getImagesByType(opt, 'after');
+                                        const currentAfterIndex = currentImageIndices[`${opt.id}_after`] || 0;
+                                        const hasMultipleAfterImages = afterImages.length > 1;
+                                        
+                                        return (
+                                          <>
+                                            <Image
+                                              src={afterImages[currentAfterIndex]}
+                                              alt={`${opt.details?.title || ''} (After)`}
+                                              fill
+                                              className="object-cover"
+                                            />
+                                            
+                                            {/* Image Type Label */}
+                                            <div className="absolute top-2 left-2 px-3 py-1.5 rounded-full text-xs font-medium bg-black/60 text-white">
+                                              <span className="text-green-300">After</span>
+                                              {hasMultipleAfterImages && (
+                                                <span className="ml-2 text-white/80">
+                                                  {currentAfterIndex + 1}/{afterImages.length}
+                                                </span>
+                                              )}
+                                            </div>
+                                            
+                                            {/* Navigation Arrows */}
+                                            {hasMultipleAfterImages && (
+                                              <>
+                                                <button
+                                                  onClick={() => prevImage(opt.id, 'after')}
+                                                  className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                                                  aria-label="Previous image"
+                                                >
+                                                  ←
+                                                </button>
+                                                <button
+                                                  onClick={() => nextImage(opt.id, 'after')}
+                                                  className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black/70"
+                                                  aria-label="Next image"
+                                                >
+                                                  →
+                                                </button>
+                                              </>
+                                            )}
+                                          </>
+                                        );
+                                      })()}
                                     </div>
                                   )}
                                   <p className="text-sm text-gray-600">{opt.details?.description}</p>

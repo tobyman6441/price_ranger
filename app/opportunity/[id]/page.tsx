@@ -33,40 +33,57 @@ import { PriceSummary } from '@/app/components/PriceSummary'
 import { calculateMonthlyPayment } from '@/app/utils/calculations'
 import { EstimateDetails } from '@/app/components/EstimateDetails'
 import { OpportunitySaveTemplateDialog } from '../../components/opportunity-save-template-dialog'
-import { Option, Operator, Opportunity, Template } from '@/app/types'
+import { Operator, Opportunity, Template } from '@/app/types'
 
-// Adapter functions to convert between different interface versions
-const adaptOptionsToPriceSummary = (options: Option[]): any[] => {
-  return options.map(option => ({
-    ...option,
-    promotion: option.promotion ? {
-      ...option.promotion,
-      id: Math.random().toString(36).substr(2, 9)
-    } : undefined,
-  }));
-};
-
-const adaptOperatorsToPriceSummary = (operators: Operator[]): any[] => {
-  return operators.map((op, index) => ({
-    ...op,
-    id: parseInt(op.id) || index + 1
-  }));
-};
-
-const adaptOptionToEstimateDetails = (option: Option | undefined): any => {
-  if (!option) return undefined;
-  
-  return {
-    ...option,
-    options: [],
-    hasCalculations: option.hasCalculations ?? false,
-    showAsLowAsPrice: option.showAsLowAsPrice ?? false,
-    promotion: option.promotion ? {
-      ...option.promotion,
-      id: Math.random().toString(36).substr(2, 9)
-    } : undefined
-  };
-};
+// Extended Option interface with image arrays for cycling
+interface Option {
+  id: string
+  title: string
+  content: string
+  description: string
+  price?: number
+  afterImage: string
+  beforeImage?: string // Added for image cycling
+  afterImages?: string[] // Added for image cycling
+  beforeImages?: string[] // Added for image cycling
+  isComplete: boolean
+  materials?: string[]
+  sections?: string[]
+  showAsLowAsPrice?: boolean
+  hasCalculations?: boolean
+  isApproved?: boolean
+  promotion?: {
+    type: string
+    discount: string
+    validUntil: string
+  }
+  details?: {
+    title: string
+    description: string
+    price: number
+    afterImage: string
+    beforeImage?: string // Added for image cycling
+    afterImages?: string[] // Added for image cycling
+    beforeImages?: string[] // Added for image cycling
+    materials?: string[]
+    sections?: string[]
+    financeSettings?: {
+      apr: number
+      termLength: number
+    }
+  }
+  calculatedPriceDetails?: {
+    materialCost: number
+    laborCost: number
+    otherCost: number
+    materialTax: number
+    laborTax: number
+    otherTax: number
+    totalTax: number
+    profitMargin: number
+    totalPrice: number
+  }
+}
 
 interface Job {
   id: string
@@ -151,33 +168,75 @@ const calculateDiscountedPrice = (price: number, promotion: { type: string; disc
   return price - discountAmount
 }
 
+// First, add the missing adapter functions back
+const adaptOptionsToPriceSummary = (options: Option[]): any[] => {
+  return options.map(option => ({
+    ...option,
+    promotion: option.promotion ? {
+      ...option.promotion,
+      id: Math.random().toString(36).substr(2, 9)
+    } : undefined,
+  }));
+};
+
+const adaptOperatorsToPriceSummary = (operators: Operator[]): any[] => {
+  return operators.map((op, index) => ({
+    ...op,
+    id: parseInt(op.id.toString()) || index + 1
+  }));
+};
+
+const adaptOptionToEstimateDetails = (option: Option | undefined): any => {
+  if (!option) return undefined;
+  
+  return {
+    ...option,
+    options: [],
+    hasCalculations: option.hasCalculations ?? false,
+    showAsLowAsPrice: option.showAsLowAsPrice ?? false,
+    promotion: option.promotion ? {
+      ...option.promotion,
+      id: Math.random().toString(36).substr(2, 9)
+    } : undefined
+  };
+};
+
 export default function OpportunityPage() {
   const router = useRouter()
   const params = useParams()
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const columnsRef = useRef<string>('')
+  
+  const [isLoading, setIsLoading] = useState(true)
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [title, setTitle] = useState('')
+  const [column, setColumn] = useState('todo')
   const [options, setOptions] = useState<Option[]>([])
   const [operators, setOperators] = useState<Operator[]>([])
-  const [isEditingTitle, setIsEditingTitle] = useState(false)
-  const [title, setTitle] = useState('New Sales Opportunity')
-  const [promotion, setPromotion] = useState<{
-    type: string
-    discount: string
-    validUntil: string
-  } | undefined>()
+  const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null)
+  const [showCalculator, setShowCalculator] = useState(false)
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [selectedOption, setSelectedOption] = useState<Option | null>(null)
+  const [opportunityId, setOpportunityId] = useState<string | null>(null)
+  const [historyStack, setHistoryStack] = useState<HistoryState[]>([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
+  const [history, setHistory] = useState<HistoryState[]>([])
+  const [currentHistoryIndex, setCurrentHistoryIndex] = useState(-1)
   const [isJobSelectorOpen, setIsJobSelectorOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
+  const [selectedMeasurementTypes, setSelectedMeasurementTypes] = useState<string[]>([])
+  const [jobData, setJobData] = useState<Job[]>([])
+  const [jobsLoading, setJobsLoading] = useState(false)
+  const [promotion, setPromotion] = useState<{ type: string; discount: string; validUntil: string } | undefined>(undefined)
+  const [isPromotionOpen, setIsPromotionOpen] = useState(false)
+  const [isFeedbackOpen, setIsFeedbackOpen] = useState(false)
+  const [isDeleteConfirmationOpen, setIsDeleteConfirmationOpen] = useState(false)
+  const [currentImageIndices, setCurrentImageIndices] = useState<{[key: string]: number}>({})
   const [selectedJobs, setSelectedJobs] = useState<Job[]>([])
   const [showErrorDialog, setShowErrorDialog] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [currentColumn, setCurrentColumn] = useState('drafts')
   const [columns, setColumns] = useState<{id: string, title: string}[]>([])
-  const [history, setHistory] = useState<HistoryState[]>([])
-  const [currentHistoryIndex, setCurrentHistoryIndex] = useState(-1)
-  const columnsRef = useRef<string>('')
-  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
-  const [selectedMeasurementTypes, setSelectedMeasurementTypes] = useState<string[]>([])
-  const [showDetails, setShowDetails] = useState(false)
-  const [activeDetailsOptionId, setActiveDetailsOptionId] = useState<string | null>(null)
   const [templates, setTemplates] = useState<{ id: string; name: string; data: Opportunity }[]>([])
 
   // Load columns from localStorage
@@ -230,7 +289,7 @@ export default function OpportunityPage() {
       setTitle(existingOpportunity.title)
       setOptions(existingOpportunity.options || [])
       setOperators(existingOpportunity.operators || [])
-      setCurrentColumn(existingOpportunity.column || 'drafts')
+      setColumn(existingOpportunity.column || 'todo')
       setPromotion(existingOpportunity.promotion)
       // Initialize history with the current state
       setHistory([{ options: existingOpportunity.options || [], operators: existingOpportunity.operators || [] }])
@@ -263,8 +322,8 @@ export default function OpportunityPage() {
         }
       ];
       setOptions(initialOptions)
-      const defaultColumn = columns[0]?.id || 'drafts'
-      setCurrentColumn(defaultColumn)
+      const defaultColumn = columns[0]?.id || 'todo'
+      setColumn(defaultColumn)
       // Initialize history with the initial state
       setHistory([{ options: initialOptions, operators: [] }])
       setCurrentHistoryIndex(0)
@@ -508,7 +567,7 @@ export default function OpportunityPage() {
   };
 
   const handleOptionClick = (optionId: string) => {
-    setActiveDetailsOptionId(optionId);
+    setSelectedOptionId(optionId);
   };
 
   const handleJobSelect = (job: Job) => {
@@ -527,7 +586,7 @@ export default function OpportunityPage() {
   }
 
   const handleCalculate = (optionId: string) => {
-    setActiveDetailsOptionId(optionId);
+    setSelectedOptionId(optionId);
     setIsJobSelectorOpen(true);
   };
 
@@ -540,7 +599,7 @@ export default function OpportunityPage() {
     
     // Update option with pre-populated info
     const updatedOptions = options.map(opt => {
-      if (opt.id === activeDetailsOptionId) {
+      if (opt.id === selectedOptionId) {
         const title = 'GAF Timberline HDZ roof and Hardie® Artisan® V Groove Siding';
         return {
           ...opt,
@@ -581,7 +640,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
         options: updatedOptions,
         operators: operators.map(op => ({ ...op, id: op.id.toString() })), // Convert operator IDs to strings
         lastUpdated: new Date().toISOString(),
-        column: 'Drafts',
+        column: 'todo',
         promotion
       });
     }
@@ -602,7 +661,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
   }
 
   const scroll = (direction: 'left' | 'right') => {
-    if (!scrollContainerRef.current) return
+    if (!scrollContainerRef?.current) return
     
     const container = scrollContainerRef.current
     const scrollAmount = 300
@@ -615,29 +674,31 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
   }
 
   const measurementTypes = useMemo(() => 
-    Array.from(new Set(jobs.map(job => job.measurementType))),
-    []
+    Array.from(new Set(jobData.map(job => job.measurementType))),
+    [jobData]
   )
 
   const statuses = useMemo(() => 
-    Array.from(new Set(jobs.map(job => job.status))),
-    []
+    Array.from(new Set(jobData.map(job => job.status))),
+    [jobData]
   )
 
-  const filteredJobs = jobs.filter(job => {
-    const matchesSearch = job.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      job.measurementType.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredJobs = useMemo(() => {
+    return jobData.filter(job => {
+      const matchesSearch = job.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.measurementType.toLowerCase().includes(searchQuery.toLowerCase())
 
-    const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(job.status)
-    const matchesMeasurementType = selectedMeasurementTypes.length === 0 || selectedMeasurementTypes.includes(job.measurementType)
+      const matchesStatus = selectedStatuses.length === 0 || selectedStatuses.includes(job.status)
+      const matchesMeasurementType = selectedMeasurementTypes.length === 0 || selectedMeasurementTypes.includes(job.measurementType)
 
-    return matchesSearch && matchesStatus && matchesMeasurementType
-  })
+      return matchesSearch && matchesStatus && matchesMeasurementType
+    });
+  }, [jobData, searchQuery, selectedStatuses, selectedMeasurementTypes]);
 
   const handleStatusChange = (status: string) => {
     // Handle column changes
-    setCurrentColumn(status)
+    setColumn(status)
     
     // Save to localStorage immediately
     const opportunityId = params?.id as string
@@ -726,7 +787,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
       options: completedOptions,
       operators: operators,
       lastUpdated: new Date().toISOString(),
-      column: currentColumn,
+      column: column,
       promotion
     }
 
@@ -753,8 +814,8 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
   }
 
   const handleShowDetails = (optionId: string) => {
-    setActiveDetailsOptionId(optionId)
-    setShowDetails(true)
+    setSelectedOptionId(optionId)
+    setIsDetailsOpen(true)
     
     // Initialize blank details if none exist
     const option = options.find(opt => opt.id === optionId)
@@ -907,6 +968,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
     description: string;
     price: number;
     afterImage: string;
+    afterImages?: string[];
     materials?: string[];
     sections?: string[];
     hasCalculations?: boolean;
@@ -948,19 +1010,20 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
         validUntil: details.promotion.validUntil
       };
       setPromotion(opportunityPromotion);
-    } else if (details.promotion === undefined && activeDetailsOptionId) {
+    } else if (details.promotion === undefined && selectedOptionId) {
       // Clear the promotion if explicitly set to undefined
       setPromotion(undefined);
     }
     
     // Update options with new details
     const updatedOptions = options.map(opt => 
-      opt.id === activeDetailsOptionId ? {
+      opt.id === selectedOptionId ? {
         ...opt,
         title: details.title,
         description: details.description,
         price: details.price,
         afterImage: details.afterImage,
+        afterImages: details.afterImages || [],
         content: details.title,
         isComplete: true,
         hasCalculations: true,
@@ -991,6 +1054,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
           description: details.description,
           price: details.price,
           afterImage: details.afterImage,
+          afterImages: details.afterImages || [],
           financingOption: details.financingOption,
           materials: details.materials || [],
           sections: details.sections || []
@@ -1028,7 +1092,7 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
 
     // Only close the dialog if _preventClose is not set
     if (!details._preventClose) {
-      setShowDetails(false);
+      setIsDetailsOpen(false);
     }
   };
 
@@ -1045,8 +1109,106 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
     options,
     operators,
     lastUpdated: new Date().toISOString(),
-    column: currentColumn
+    column: column
   }
+
+  // Modify the getImagesByType function to handle all image types
+  const getImagesByType = (option: Option, type: 'before' | 'after' | 'all') => {
+    if (type === 'before') {
+      // Return beforeImages array if it exists, otherwise use single beforeImage
+      return option.beforeImages && option.beforeImages.length > 0
+        ? option.beforeImages
+        : option.beforeImage 
+          ? [option.beforeImage] 
+          : [];
+    } else if (type === 'after') {
+      // Return afterImages array if it exists, otherwise use single afterImage
+      return option.afterImages && option.afterImages.length > 0
+        ? option.afterImages
+        : option.afterImage 
+          ? [option.afterImage] 
+          : [];
+    } else {
+      // Combine all images for the 'all' type
+      const allImages = [];
+      
+      // Add afterImages
+      if (option.afterImages && option.afterImages.length > 0) {
+        allImages.push(...option.afterImages);
+      } else if (option.afterImage) {
+        allImages.push(option.afterImage);
+      }
+      
+      // Add beforeImages
+      if (option.beforeImages && option.beforeImages.length > 0) {
+        allImages.push(...option.beforeImages);
+      } else if (option.beforeImage) {
+        allImages.push(option.beforeImage);
+      }
+      
+      return allImages;
+    }
+  };
+
+  // Update the nextImage and prevImage functions to handle 'all' type
+  const nextImage = (optionId: string, type: 'before' | 'after' | 'all') => {
+    return (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const option = options.find(opt => opt.id === optionId);
+      if (!option) return;
+      
+      const images = getImagesByType(option, type);
+      if (images.length <= 1) return;
+      
+      const currentIndex = currentImageIndices[`${optionId}_${type}`] || 0;
+      const newIndex = (currentIndex + 1) % images.length;
+      
+      setCurrentImageIndices(prev => ({
+        ...prev,
+        [`${optionId}_${type}`]: newIndex
+      }));
+    };
+  };
+
+  const prevImage = (optionId: string, type: 'before' | 'after' | 'all') => {
+    return (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      
+      const option = options.find(opt => opt.id === optionId);
+      if (!option) return;
+      
+      const images = getImagesByType(option, type);
+      if (images.length <= 1) return;
+      
+      const currentIndex = currentImageIndices[`${optionId}_${type}`] || 0;
+      const newIndex = (currentIndex - 1 + images.length) % images.length;
+      
+      setCurrentImageIndices(prev => ({
+        ...prev,
+        [`${optionId}_${type}`]: newIndex
+      }));
+    };
+  };
+  
+  // Initialize image indices for each option and image type
+  useEffect(() => {
+    const initialIndices: {[key: string]: number} = {};
+    options.forEach((opt) => {
+      initialIndices[`${opt.id}_before`] = 0;
+      initialIndices[`${opt.id}_after`] = 0;
+      initialIndices[`${opt.id}_all`] = 0;
+    });
+    setCurrentImageIndices(initialIndices);
+  }, [options.length]);
+
+  // Update the assignment of jobData with the default jobs data 
+  useEffect(() => {
+    // Set the initial job data from the mock data
+    setJobData(jobs);
+  }, []);
 
   return (
     <main className="container mx-auto p-4 min-h-screen">
@@ -1082,12 +1244,12 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
                 </h1>
               )}
               <Select
-                value={currentColumn}
+                value={column}
                 onValueChange={handleStatusChange}
               >
                 <SelectTrigger className="h-6 px-1 sm:px-2">
                   <Badge variant="outline" shape="rectangle" className="text-xs font-normal">
-                    {columns.find(col => col.id === currentColumn)?.title || 'No Status'}
+                    {columns.find(col => col.id === column)?.title || 'No Status'}
                   </Badge>
                 </SelectTrigger>
                 <SelectContent>
@@ -1224,14 +1386,54 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
                           {option.hasCalculations && (
                             <>
                               <div className="relative w-full h-[200px]">
-                                {option.afterImage && (
-                                  <Image
-                                    src={option.afterImage}
-                                    alt="After"
-                                    fill
-                                    className="object-cover rounded-t-lg"
-                                  />
-                                )}
+                                {(() => {
+                                  const afterImages = getImagesByType(option, 'after');
+                                  const currentAfterIndex = currentImageIndices[`${option.id}_after`] || 0;
+                                  const hasMultipleAfterImages = afterImages.length > 1;
+                                  
+                                  if (afterImages.length === 0) return null;
+                                  
+                                  return (
+                                    <>
+                                      <Image
+                                        src={afterImages[currentAfterIndex]}
+                                        alt={option.title || 'Option Image'}
+                                        fill
+                                        className="object-cover rounded-t-lg"
+                                      />
+                                      
+                                      {/* Image Type Label */}
+                                      <div className="absolute top-2 left-2 bg-black/50 text-white px-2 py-1 rounded text-xs">
+                                        <span className="text-green-300">After</span>
+                                        {hasMultipleAfterImages && (
+                                          <span className="ml-2 text-white/80">
+                                            {currentAfterIndex + 1}/{afterImages.length}
+                                          </span>
+                                        )}
+                                      </div>
+                                      
+                                      {/* Navigation Arrows */}
+                                      {hasMultipleAfterImages && (
+                                        <>
+                                          <button
+                                            onClick={prevImage(option.id, 'after')}
+                                            className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black shadow-md border border-white/20 z-10"
+                                            aria-label="Previous image"
+                                          >
+                                            <ChevronLeft className="w-4 h-4" />
+                                          </button>
+                                          <button
+                                            onClick={nextImage(option.id, 'after')}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/70 text-white flex items-center justify-center hover:bg-black shadow-md border border-white/20 z-10"
+                                            aria-label="Next image"
+                                          >
+                                            <ChevronRight className="w-4 h-4" />
+                                          </button>
+                                        </>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                               </div>
                               <div className="flex-1 w-full p-4 flex flex-col gap-3">
                                 <span className="text-sm font-medium text-foreground whitespace-pre-wrap">{option.title}</span>
@@ -1592,10 +1794,10 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
         </Dialog>
 
         <EstimateDetails
-          isOpen={showDetails}
-          onClose={() => setShowDetails(false)}
-          onCalculate={() => handleCalculate(activeDetailsOptionId!)}
-          optionDetails={adaptOptionToEstimateDetails(options.find(opt => opt.id === activeDetailsOptionId))}
+          isOpen={isDetailsOpen}
+          onClose={() => setIsDetailsOpen(false)}
+          onCalculate={() => handleCalculate(selectedOptionId!)}
+          optionDetails={adaptOptionToEstimateDetails(options.find(opt => opt.id === selectedOptionId))}
           onSave={handleSaveEstimate}
         />
 

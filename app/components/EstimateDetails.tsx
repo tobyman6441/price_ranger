@@ -36,16 +36,26 @@ interface FinancingOption {
   termLength: number;
 }
 
+// Define interface for image with type
+interface ImageWithType {
+  url: string;
+  type: 'before' | 'after' | 'other';
+}
+
 interface EstimateDetailsProps {
   isOpen: boolean;
   onClose: () => void;
   onCalculate: () => void;
   optionDetails?: {
+    id?: string;
     title: string;
     description: string;
     price: number;
     priceRange?: { min: number; max: number };
     afterImage: string;
+    beforeImages?: string[];
+    afterImages?: string[];
+    otherImages?: string[];
     hasCalculations: boolean;
     showAsLowAsPrice: boolean;
     isApproved?: boolean;
@@ -72,6 +82,9 @@ interface EstimateDetailsProps {
       price?: number;
       finalPrice?: number;
       afterImage?: string;
+      beforeImages?: string[];
+      afterImages?: string[];
+      otherImages?: string[];
       hasCalculations?: boolean;
       showAsLowAsPrice?: boolean;
       promotion?: Promotion;
@@ -81,6 +94,9 @@ interface EstimateDetailsProps {
         price: number;
         finalPrice?: number;
         afterImage: string;
+        beforeImages?: string[];
+        afterImages?: string[];
+        otherImages?: string[];
         address?: string;
         priceRange?: {
           min: number;
@@ -98,6 +114,9 @@ interface EstimateDetails {
   price: number;
   priceRange?: { min: number; max: number };
   afterImage: string;
+  beforeImages?: string[];
+  afterImages?: string[];
+  otherImages?: string[];
   hasCalculations: boolean;
   showAsLowAsPrice: boolean;
   isApproved?: boolean;
@@ -124,6 +143,9 @@ interface EstimateDetails {
     price?: number;
     finalPrice?: number;
     afterImage?: string;
+    beforeImages?: string[];
+    afterImages?: string[];
+    otherImages?: string[];
     hasCalculations?: boolean;
     showAsLowAsPrice?: boolean;
     promotion?: Promotion;
@@ -133,6 +155,9 @@ interface EstimateDetails {
       price: number;
       finalPrice?: number;
       afterImage: string;
+      beforeImages?: string[];
+      afterImages?: string[];
+      otherImages?: string[];
       address?: string;
       priceRange?: {
         min: number;
@@ -153,11 +178,16 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
   const [termLength, setTermLength] = useState(60);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [images, setImages] = useState<string[]>([]);
+  const [imagesWithType, setImagesWithType] = useState<ImageWithType[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [showImageSourceDialog, setShowImageSourceDialog] = useState(false);
   const [showAsLowAsPrice, setShowAsLowAsPrice] = useState(true);
   const [isApproved, setIsApproved] = useState(false);
+  const [showDeleteImageDialog, setShowDeleteImageDialog] = useState(false);
+  const [imageToDeleteIndex, setImageToDeleteIndex] = useState<number | null>(null);
+
+  // For backward compatibility
+  const images = useMemo(() => imagesWithType.map(img => img.url), [imagesWithType]);
 
   // Promotion states
   const [isPromotionEnabled, setIsPromotionEnabled] = useState(false);
@@ -268,6 +298,59 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
   const finalPrice = activePromotion ? (price) - calculateDiscount(price, activePromotion) : price;
   const monthlyPayment = calculateMonthlyPayment(finalPrice, activeFinancingOption?.apr || apr, activeFinancingOption?.termLength || termLength);
 
+  // Initialize images from optionDetails - Ensure this runs exactly once on initial load
+  useEffect(() => {
+    if (!optionDetails) return;
+    
+    const initialImages: ImageWithType[] = [];
+    
+    // Add after image if it exists (backward compatibility)
+    if (optionDetails.afterImage) {
+      // Only add if not already in afterImages array to avoid duplicates
+      const isDuplicate = optionDetails.afterImages?.includes(optionDetails.afterImage);
+      if (!isDuplicate) {
+        initialImages.push({
+          url: optionDetails.afterImage,
+          type: 'after'
+        });
+      }
+    }
+    
+    // Add beforeImages if they exist
+    if (optionDetails.beforeImages && optionDetails.beforeImages.length > 0) {
+      optionDetails.beforeImages.forEach(url => {
+        initialImages.push({
+          url,
+          type: 'before'
+        });
+      });
+    }
+    
+    // Add afterImages if they exist
+    if (optionDetails.afterImages && optionDetails.afterImages.length > 0) {
+      optionDetails.afterImages.forEach(url => {
+        initialImages.push({
+          url,
+          type: 'after'
+        });
+      });
+    }
+    
+    // Add otherImages if they exist
+    if (optionDetails.otherImages && optionDetails.otherImages.length > 0) {
+      optionDetails.otherImages.forEach(url => {
+        initialImages.push({
+          url,
+          type: 'other'
+        });
+      });
+    }
+    
+    if (initialImages.length > 0) {
+      setImagesWithType(initialImages);
+    }
+  }, [optionDetails?.id]); // Only run when optionDetails.id changes, not on every optionDetails change
+
   // Update local state when optionDetails changes
   useEffect(() => {
     if (!optionDetails) return;
@@ -281,7 +364,9 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
     setDisplayPrice(`$${fixedPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
     setEditingPrice(fixedPrice.toString());
     
-    setImages(optionDetails.afterImage ? [optionDetails.afterImage] : []);
+    // We no longer modify imagesWithType here to avoid overwriting them
+    // Images are now handled in the previous useEffect
+    
     setCurrentImageIndex(0);
     setIsCalculated(!!optionDetails.hasCalculations);
     setShowAsLowAsPrice(optionDetails.showAsLowAsPrice !== false);
@@ -490,7 +575,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
       // Open design ideas link in new tab
       window.open('https://hover.to/wr/properties/design', '_blank');
       
-      // Add design idea images to carousel
+      // Add design idea images to carousel as "other" type
       const designImages = [
         "/design-idea1.jpg",
         "/design-idea2.jpg",
@@ -499,9 +584,18 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
       ];
       
       // Keep existing images if any, and add design ideas
-      setImages(prevImages => {
-        const uniqueImages = new Set([...prevImages, ...designImages]);
-        return Array.from(uniqueImages);
+      setImagesWithType(prevImages => {
+        const newImages = [...prevImages];
+        designImages.forEach(url => {
+          // Check if this URL already exists
+          if (!newImages.some(img => img.url === url)) {
+            newImages.push({
+              url,
+              type: 'other'
+            });
+          }
+        });
+        return newImages;
       });
       
       setShowImageSourceDialog(false);
@@ -511,33 +605,55 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
     }
   };
 
-  const handleSave = () => {
-    const details: EstimateDetails = {
-      title,
-      description,
-      price,
-      afterImage: images[0] || '',
-      hasCalculations: isCalculated,
-      showAsLowAsPrice,
-      isApproved,
-      promotion: isPromotionEnabled ? activePromotion || undefined : undefined,
-      financingOption: activeFinancingOption || undefined,
-      options: optionDetails?.options || [],
-      calculatedPriceDetails: calculatedPriceDetails ? {
-        ...calculatedPriceDetails,
-        otherCost: calculatedPriceDetails.otherCost || 0,
-        materialTax: calculatedPriceDetails.materialTax || 0,
-        laborTax: calculatedPriceDetails.laborTax || 0,
-        otherTax: calculatedPriceDetails.otherTax || 0,
-        totalTax: calculatedPriceDetails.totalTax || 0
-      } : undefined,
-      _preventClose: false
-    };
-    
-    onSave(details);
-    // Only close if explicitly saving (not when applying a promotion)
-    if (!details._preventClose) {
-      onClose();
+  const handleSave = async () => {
+    try {
+      setIsSaving(true)
+      
+      // Make sure imagesWithType array is valid before processing
+      const validImages = imagesWithType.filter(img => img && img.url && typeof img.url === 'string')
+      
+      // Process images for saving
+      const beforeImages = validImages
+        .filter(img => img.type === 'before')
+        .map(img => img.url)
+      
+      const afterImages = validImages
+        .filter(img => img.type === 'after')
+        .map(img => img.url)
+      
+      const otherImages = validImages
+        .filter(img => img.type === 'other')
+        .map(img => img.url)
+
+      // Get first valid afterImage for backward compatibility
+      const afterImage = afterImages.length > 0 ? afterImages[0] : '';
+
+      // Create the updated details object with all image types
+      const updatedDetails: EstimateDetails = {
+        title,
+        description,
+        price,
+        afterImage, // Keep backward compatibility with single afterImage
+        beforeImages,
+        afterImages,
+        otherImages,
+        hasCalculations: isCalculated,
+        showAsLowAsPrice,
+        isApproved,
+        promotion: activePromotion || undefined,
+        financingOption: activeFinancingOption || undefined,
+        options: optionDetails?.options || [],
+        calculatedPriceDetails: calculatedPriceDetails || undefined
+      };
+
+      // Just call the onSave callback with the updated details
+      // This avoids trying to persist to the database
+      onSave(updatedDetails);
+
+    } catch (error) {
+      console.error('Error saving estimate:', error)
+    } finally {
+      setIsSaving(false)
     }
   };
 
@@ -597,11 +713,11 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
   };
 
   const handleNextImage = () => {
-    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+    setCurrentImageIndex((prev) => (prev + 1) % imagesWithType.length);
   };
 
   const handlePrevImage = () => {
-    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+    setCurrentImageIndex((prev) => (prev - 1 + imagesWithType.length) % imagesWithType.length);
   };
 
   const handleEditPromotion = (promotion: Promotion) => {
@@ -666,7 +782,10 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
       title,
       description,
       price,
-      afterImage: images[0] || '',
+      afterImage: imagesWithType.filter(img => img.type === 'after')[0]?.url || '',
+      beforeImages: imagesWithType.filter(img => img.type === 'before').map(img => img.url),
+      afterImages: imagesWithType.filter(img => img.type === 'after').map(img => img.url),
+      otherImages: imagesWithType.filter(img => img.type === 'other').map(img => img.url),
       hasCalculations: isCalculated,
       showAsLowAsPrice,
       isApproved,
@@ -825,6 +944,90 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
     return null;
   };
 
+  // Function to toggle the image type
+  const handleToggleImageType = (index: number) => {
+    setImagesWithType(prevImages => {
+      const newImages = [...prevImages];
+      const currentType = newImages[index].type;
+      
+      // Cycle through types: before -> after -> other -> before
+      switch (currentType) {
+        case 'before':
+          newImages[index].type = 'after';
+          break;
+        case 'after':
+          newImages[index].type = 'other';
+          break;
+        case 'other':
+        default:
+          newImages[index].type = 'before';
+          break;
+      }
+      
+      return newImages;
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'before' | 'after' | 'other') => {
+    const files = e.target.files
+    if (!files) return
+
+    const newImages = await Promise.all(
+      Array.from(files).map(async (file) => {
+        try {
+          // Generate a dummy URL for the image instead of uploading to database
+          // This could be a local object URL or a placeholder URL
+          const dummyUrl = URL.createObjectURL(file)
+          return {
+            url: dummyUrl,
+            type
+          }
+        } catch (error) {
+          console.error('Error processing image:', error)
+          return null
+        }
+      })
+    )
+
+    setImagesWithType(prev => [...prev, ...newImages.filter(Boolean) as ImageWithType[]])
+  }
+
+  // Function to handle image deletion
+  const handleDeleteImage = (index: number) => {
+    setImageToDeleteIndex(index);
+    setShowDeleteImageDialog(true);
+  };
+
+  // Function to confirm image deletion
+  const confirmDeleteImage = () => {
+    if (imageToDeleteIndex === null) return;
+    
+    if (imagesWithType.length > 1) {
+      setImagesWithType(prev => {
+        const newImages = [...prev];
+        newImages.splice(imageToDeleteIndex, 1);
+        return newImages;
+      });
+      
+      // Update current index if needed
+      if (currentImageIndex >= imagesWithType.length - 1) {
+        setCurrentImageIndex(imagesWithType.length - 2);
+      } else if (currentImageIndex === imageToDeleteIndex) {
+        // If deleting the current image, but it's not the last one, keep the same index
+        // which will now point to the next image
+      }
+    } else {
+      // If it's the last image, just clear the array
+      setImagesWithType([]);
+    }
+    
+    // Close the dialog
+    setShowDeleteImageDialog(false);
+    setImageToDeleteIndex(null);
+  };
+
+  const [isSaving, setIsSaving] = useState(false)
+
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
       // If dialog is closing (open becoming false), call onClose
@@ -857,15 +1060,36 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
               {/* Image Section */}
               <div className="space-y-4">
                 <div className="relative bg-zinc-800/50 rounded-lg p-1">
-                  {images.length > 0 ? (
+                  {imagesWithType.length > 0 ? (
                     <div className="relative aspect-video rounded-lg overflow-hidden">
                       <Image
-                        src={images[currentImageIndex]}
+                        src={imagesWithType[currentImageIndex].url}
                         alt="Project image"
                         fill
                         className="object-cover"
                       />
-                      {images.length > 1 && (
+                      <div className="absolute top-2 left-2 px-3 py-1.5 rounded-md text-xs font-bold border border-black/20 shadow-sm bg-black/70 text-white flex items-center space-x-1">
+                        {imagesWithType[currentImageIndex].type === 'before' ? (
+                          <span className="text-blue-300 uppercase tracking-wide">Before</span>
+                        ) : imagesWithType[currentImageIndex].type === 'after' ? (
+                          <span className="text-green-300 uppercase tracking-wide">After</span>
+                        ) : (
+                          <span className="uppercase tracking-wide">Other</span>
+                        )}
+                        <button
+                          onClick={() => handleToggleImageType(currentImageIndex)}
+                          className="ml-2 px-1.5 py-0.5 rounded text-xs font-medium bg-black/60 hover:bg-black/80 transition-colors"
+                        >
+                          Change
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => handleDeleteImage(currentImageIndex)}
+                        className="absolute top-2 right-2 px-3 py-1.5 rounded-full text-xs font-medium bg-black/60 text-red-300 hover:bg-black/70 transition-colors"
+                      >
+                        Remove
+                      </button>
+                      {imagesWithType.length > 1 && (
                         <>
                           <button
                             onClick={handlePrevImage}
@@ -1433,8 +1657,21 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                 multiple
                 onChange={(e) => {
                   const files = Array.from(e.target.files || []);
+                  // Create local object URLs for the images
                   const imageUrls = files.map(file => URL.createObjectURL(file));
-                  setImages(prev => [...prev, ...imageUrls]);
+                  
+                  setImagesWithType(prev => {
+                    const newImages = [...prev];
+                    imageUrls.forEach(url => {
+                      // Add as "other" type by default
+                      newImages.push({
+                        url,
+                        type: 'other'
+                      });
+                    });
+                    return newImages;
+                  });
+                  
                   setShowImageSourceDialog(false);
                 }}
                 className="block w-full text-sm text-gray-500
@@ -1478,6 +1715,28 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
           initialOtherTax={calculatedPriceDetails?.otherTax || 0}
           hasInitialCosts={hasInitialCosts}
         />
+
+        {/* Delete Image Dialog */}
+        <Dialog open={showDeleteImageDialog} onOpenChange={setShowDeleteImageDialog}>
+          <DialogContent className="sm:max-w-md">
+            <DialogTitle>Confirm Image Deletion</DialogTitle>
+            <p className="py-4 text-zinc-400">Are you sure you want to remove this image from the estimate? This action cannot be undone.</p>
+            <div className="flex items-center justify-between pt-2">
+              <Button
+                variant="destructive"
+                onClick={confirmDeleteImage}
+              >
+                Delete Image
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteImageDialog(false)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </DialogContent>
     </Dialog>
   );
