@@ -940,6 +940,19 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
   }) => {
     const opportunityId = params?.id as string;
     
+    // If the details include a promotion, update the opportunity-level promotion first
+    if (details.promotion) {
+      const opportunityPromotion = {
+        type: details.promotion.type,
+        discount: details.promotion.discount,
+        validUntil: details.promotion.validUntil
+      };
+      setPromotion(opportunityPromotion);
+    } else if (details.promotion === undefined && activeDetailsOptionId) {
+      // Clear the promotion if explicitly set to undefined
+      setPromotion(undefined);
+    }
+    
     // Update options with new details
     const updatedOptions = options.map(opt => 
       opt.id === activeDetailsOptionId ? {
@@ -988,9 +1001,16 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
     setOptions(updatedOptions);
     saveToHistory(updatedOptions, operators);
 
-    // Save to localStorage with packageNames
+    // Save to localStorage with packageNames and promotion
     const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[];
     const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId);
+    
+    // The current promotion state that should be saved
+    const currentPromotion = details.promotion ? {
+      type: details.promotion.type,
+      discount: details.promotion.discount,
+      validUntil: details.promotion.validUntil
+    } : undefined;
     
     if (existingIndex !== -1) {
       opportunities[existingIndex] = {
@@ -1000,7 +1020,8 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
         packageNames: updatedOptions.reduce((acc, opt, index) => ({
           ...acc,
           [index]: `Package ${index + 1}`
-        }), {})
+        }), {}),
+        promotion: currentPromotion
       };
       localStorage.setItem('opportunities', JSON.stringify(opportunities));
     }
@@ -1337,7 +1358,11 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
             {/* Add PriceSummary component */}
             {options.length > 0 && (
               <div className="mt-8 px-4 max-w-4xl mx-auto">
-                <PriceSummary options={adaptOptionsToPriceSummary(options)} operators={adaptOperatorsToPriceSummary(operators)} />
+                <PriceSummary 
+                  options={adaptOptionsToPriceSummary(options)} 
+                  operators={adaptOperatorsToPriceSummary(operators)} 
+                  opportunityPromotion={promotion}
+                />
               </div>
             )}
 

@@ -62,22 +62,42 @@ interface GroupTotal {
 interface PriceSummaryProps {
   options: Option[]
   operators: Operator[]
+  opportunityPromotion?: {
+    type: string;
+    discount: string;
+    validUntil: string;
+  }
 }
 
-export function PriceSummary({ options, operators }: PriceSummaryProps) {
+export function PriceSummary({ options, operators, opportunityPromotion }: PriceSummaryProps) {
   const [editingPackage, setEditingPackage] = useState<number | null>(null)
   const [packageNames, setPackageNames] = useState<{ [key: number]: string }>({})
 
+  // Apply opportunity-level promotion to options that don't have their own promotion
+  const optionsWithPromotions = options.map(option => {
+    if (option.promotion || !opportunityPromotion) {
+      return option;
+    }
+    
+    return {
+      ...option,
+      promotion: {
+        ...opportunityPromotion,
+        id: Math.random().toString(36).substr(2, 9)
+      }
+    };
+  });
+
   // Ensure operators array is properly aligned with options
-  const alignedOperators = operators.slice(0, Math.max(0, options.length - 1))
+  const alignedOperators = operators.slice(0, Math.max(0, optionsWithPromotions.length - 1))
 
   // Group options by "And" relationships
   const andGroups: Option[][] = []
   let currentGroup: Option[] = []
 
   // Process options to create groups
-  for (let i = 0; i < options.length; i++) {
-    const option = options[i]
+  for (let i = 0; i < optionsWithPromotions.length; i++) {
+    const option = optionsWithPromotions[i]
     
     if (currentGroup.length === 0) {
       currentGroup.push(option)
@@ -226,7 +246,7 @@ export function PriceSummary({ options, operators }: PriceSummaryProps) {
         <button
           onClick={() => {
             const data = {
-              options: options.map(opt => ({
+              options: optionsWithPromotions.map(opt => ({
                 ...opt,
                 details: {
                   ...opt.details
