@@ -470,6 +470,32 @@ export default function KanbanView() {
     router.push(`/opportunity/${newId}`)
   }
 
+  const handleGuidedEstimateWithHover = () => {
+    // Create a new opportunity
+    const newId = Math.random().toString(36).substr(2, 9)
+    const opportunityData = {
+      id: newId,
+      title: "Guided Hover Estimate",
+      options: [],
+      operators: [],
+      lastUpdated: new Date().toISOString(),
+      column: "drafts",
+      packageNames: []
+    }
+
+    // Get existing opportunities
+    const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]')
+    
+    // Add new opportunity
+    opportunities.push(opportunityData)
+    
+    // Save to localStorage
+    localStorage.setItem('opportunities', JSON.stringify(opportunities))
+    
+    // Navigate to the guided estimate workflow with the opportunity ID
+    router.push(`/guided-estimate?id=${newId}`)
+  }
+
   const handleSaveTemplate = (templateName: string, opportunity: Opportunity, existingTemplateId?: string) => {
     if (existingTemplateId) {
       // Update existing template
@@ -754,6 +780,9 @@ export default function KanbanView() {
             <DropdownMenuItem onClick={() => router.push('/new-opportunity')}>
               Select from template
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={handleGuidedEstimateWithHover}>
+              Guided estimate with Hover
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -946,6 +975,9 @@ export default function KanbanView() {
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => router.push('/new-opportunity')}>
                     Select from template
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={handleGuidedEstimateWithHover}>
+                    Guided estimate with Hover
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>

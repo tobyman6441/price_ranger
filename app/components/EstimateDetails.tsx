@@ -20,6 +20,7 @@ import { FinanceOptionDialog } from './FinanceOptionDialog';
 import { PriceCalculatorDialog } from './PriceCalculatorDialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { DatePicker } from "./DatePicker";
 
 interface Promotion {
   type: string;
@@ -826,8 +827,8 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => {
-      // Only allow closing through explicit close button (X) or Save button
-      if (!open && !isCreatingPromotion && !isFinancingLibraryOpen && !showImageSourceDialog && !showFinanceOptionDialog && !showPriceCalculator) {
+      // If dialog is closing (open becoming false), call onClose
+      if (!open) {
         onClose();
       }
     }}>
@@ -1098,28 +1099,14 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
 
                           <div className="space-y-2">
                             <Label>Valid Until</Label>
-                            <Popover>
-                              <PopoverTrigger asChild>
-                                <Button
-                                  variant={"outline"}
-                                  className={cn(
-                                    "w-full justify-start text-left font-normal",
-                                    !validUntil && "text-muted-foreground"
-                                  )}
-                                >
-                                  <CalendarIcon className="mr-2 h-4 w-4" />
-                                  {validUntil ? format(validUntil, "PPP") : <span>Pick a date</span>}
-                                </Button>
-                              </PopoverTrigger>
-                              <PopoverContent className="w-auto p-0">
-                                <Calendar
-                                  mode="single"
-                                  selected={validUntil}
-                                  onSelect={(date) => date && setValidUntil(date)}
-                                  initialFocus
-                                />
-                              </PopoverContent>
-                            </Popover>
+                            <DatePicker
+                              date={validUntil}
+                              onDateChange={(date) => {
+                                if (date) {
+                                  setValidUntil(date);
+                                }
+                              }}
+                            />
                           </div>
 
                           <div className="flex space-x-2">
