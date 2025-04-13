@@ -1155,6 +1155,36 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
                       >
                         Calculate price
                       </Button>
+                      <Button
+                        onClick={() => {
+                          // Create a new opportunity for the guided estimate
+                          const newId = Math.random().toString(36).substr(2, 9);
+                          const opportunityData = {
+                            id: newId,
+                            title: "Guided Hover Estimate",
+                            options: [],
+                            operators: [],
+                            lastUpdated: new Date().toISOString(),
+                            column: "drafts",
+                            packageNames: []
+                          };
+
+                          // Get existing opportunities
+                          const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]');
+                          
+                          // Add new opportunity
+                          opportunities.push(opportunityData);
+                          
+                          // Save to localStorage
+                          localStorage.setItem('opportunities', JSON.stringify(opportunities));
+                          
+                          // Navigate to the guided estimate workflow with the opportunity ID and source estimate ID
+                          window.location.href = `/guided-estimate?id=${newId}&sourceEstimateId=${optionDetails?.id}`;
+                        }}
+                        className="bg-primary/80 text-primary-foreground/90 hover:bg-primary/70 whitespace-nowrap text-sm font-medium"
+                      >
+                        Calculate with Hover
+                      </Button>
                     </div>
                   </div>
                   

@@ -4,10 +4,26 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Upload, Scan, Search, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 import Image from 'next/image'
 import { Switch } from '@/components/ui/switch'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "@/components/ui/checkbox"
 
 export default function GuidedEstimateScreen() {
   const router = useRouter()
@@ -17,6 +33,26 @@ export default function GuidedEstimateScreen() {
   const [selectedMaterial, setSelectedMaterial] = useState<string | null>(null)
   const [opportunityId, setOpportunityId] = useState<string | null>(null)
   const [showLinePrices, setShowLinePrices] = useState(true)
+  const [showHoverOptions, setShowHoverOptions] = useState(false)
+  const [showScanForm, setShowScanForm] = useState(false)
+  const [showSearchForm, setShowSearchForm] = useState(false)
+  const [hoverOptionsTitle, setHoverOptionsTitle] = useState('Create a new Hover')
+  const [isAddingStructure, setIsAddingStructure] = useState(false)
+  const [scanFormData, setScanFormData] = useState({
+    propertyName: '',
+    recipientType: '',
+    recipientName: '',
+    leadNumber: '',
+    phoneNumber: '',
+    email: '',
+    address: '',
+    deliverableType: '',
+    captureNowPayLater: false
+  })
+  const [searchAddress, setSearchAddress] = useState('')
+  const [jobSearchQuery, setJobSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string[]>(['Complete', 'Processing', 'Failed'])
+  const [deliverableFilter, setDeliverableFilter] = useState<string[]>(['Roof only', 'Full exterior', 'Interior floor plan'])
   
   // Price calculation state
   const [materialCost, setMaterialCost] = useState(35000)
@@ -55,9 +91,27 @@ export default function GuidedEstimateScreen() {
 
   // Mock data for demonstration
   const jobs = [
-    { id: 'job1', address: '123 Main St, Anytown, USA', date: '2023-10-15' },
-    { id: 'job2', address: '456 Oak Ave, Somewhere, USA', date: '2023-11-02' },
-    { id: 'job3', address: '789 Pine Rd, Nowhere, USA', date: '2023-11-20' },
+    { 
+      id: 'job1', 
+      address: '123 Main St, Anytown, USA', 
+      date: '10-15-2023',
+      status: 'Complete',
+      deliverables: ['Roof only', 'Full exterior']
+    },
+    { 
+      id: 'job2', 
+      address: '456 Oak Ave, Somewhere, USA', 
+      date: '11-02-2023',
+      status: 'Processing',
+      deliverables: ['Full exterior', 'Interior floor plan']
+    },
+    { 
+      id: 'job3', 
+      address: '789 Pine Rd, Nowhere, USA', 
+      date: '11-20-2023',
+      status: 'Failed',
+      deliverables: ['Roof only']
+    },
   ]
 
   const models = [
@@ -165,6 +219,45 @@ export default function GuidedEstimateScreen() {
           totalTax,
           totalPrice,
           showPrices: showLinePrices
+        }
+      }
+      
+      // Check if we're coming from an existing estimate
+      const urlParams = new URLSearchParams(window.location.search)
+      const sourceEstimateId = urlParams.get('sourceEstimateId')
+      
+      if (sourceEstimateId) {
+        // Find the source opportunity and update it with the new option
+        const sourceOpportunity = opportunities.find((opp: any) => 
+          opp.options.some((opt: any) => opt.id === sourceEstimateId)
+        )
+        
+        if (sourceOpportunity) {
+          // Update the existing option with the new calculated values
+          const sourceOption = sourceOpportunity.options.find((opt: any) => opt.id === sourceEstimateId)
+          if (sourceOption) {
+            sourceOption.price = newOption.price
+            sourceOption.description = newOption.description
+            sourceOption.hasCalculations = true
+            sourceOption.calculatedPriceDetails = {
+              materialCost: newOption.costBreakdown.materialCost,
+              laborCost: newOption.costBreakdown.laborCost,
+              otherCost: newOption.costBreakdown.otherCost,
+              materialTax: newOption.costBreakdown.materialTax,
+              laborTax: newOption.costBreakdown.laborTax,
+              otherTax: newOption.costBreakdown.otherTax,
+              totalTax: newOption.costBreakdown.totalTax,
+              profitMargin: newOption.costBreakdown.profitMargin,
+              totalPrice: newOption.costBreakdown.totalPrice
+            }
+            
+            // Save the updated opportunities
+            localStorage.setItem('opportunities', JSON.stringify(opportunities))
+            
+            // Navigate back to the source estimate
+            router.push(`/opportunity/${sourceOpportunity.id}`)
+            return
+          }
         }
       }
       
@@ -295,39 +388,157 @@ export default function GuidedEstimateScreen() {
         {currentStep === 1 && (
           <Card className="mb-6">
             <CardContent className="p-6">
-              <h2 className="text-xl font-semibold mb-4">Select a Job</h2>
+              <h2 className="text-xl font-semibold mb-4">Select an existing job</h2>
               <p className="text-muted-foreground mb-6">Choose the property you want to create an estimate for:</p>
               
-              <div className="grid grid-cols-1 gap-4">
-                {jobs.map((job) => (
-                  <div 
-                    key={job.id}
-                    className={`p-4 border rounded-lg cursor-pointer transition-all ${
-                      selectedJob === job.id 
-                        ? 'border-primary bg-primary/10' 
-                        : 'border-border hover:border-primary/50'
-                    }`}
-                    onClick={() => selectJob(job.id)}
-                  >
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <h3 className="font-medium">{job.address}</h3>
-                        <p className="text-sm text-muted-foreground">Captured on {job.date}</p>
-                      </div>
-                      {selectedJob === job.id && (
-                        <CheckCircle2 className="w-5 h-5 text-primary" />
-                      )}
+              <div className="space-y-4">
+                {/* Search and Filters */}
+                <div>
+                  <div className="relative mb-3">
+                    <Input
+                      placeholder="Search by address..."
+                      value={jobSearchQuery}
+                      onChange={(e) => setJobSearchQuery(e.target.value)}
+                      className="pr-8"
+                    />
+                    <Search className="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+                  </div>
+                  
+                  <div className="flex mb-4">
+                    <div className="w-[180px]">
+                      <Label className="text-xs mb-1.5 block">Status</Label>
+                      <Select
+                        value={statusFilter.length === 3 ? "all" : statusFilter.join(",")}
+                        onValueChange={(value) => {
+                          if (value === "all") {
+                            setStatusFilter(['Complete', 'Processing', 'Failed']);
+                          } else {
+                            const values = value.split(',').filter(Boolean);
+                            setStatusFilter(values);
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All statuses" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All statuses</SelectItem>
+                          <SelectItem value="Complete">Complete</SelectItem>
+                          <SelectItem value="Processing">Processing</SelectItem>
+                          <SelectItem value="Failed">Failed</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="w-[180px]">
+                      <Label className="text-xs mb-1.5 block">Deliverable Type</Label>
+                      <Select
+                        value={deliverableFilter.length === 3 ? "all" : deliverableFilter.join(",")}
+                        onValueChange={(value) => {
+                          if (value === "all") {
+                            setDeliverableFilter(['Roof only', 'Full exterior', 'Interior floor plan']);
+                          } else {
+                            const values = value.split(',').filter(Boolean);
+                            setDeliverableFilter(values);
+                          }
+                        }}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="All deliverables" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">All deliverables</SelectItem>
+                          <SelectItem value="Roof only">Roof only</SelectItem>
+                          <SelectItem value="Full exterior">Full exterior</SelectItem>
+                          <SelectItem value="Interior floor plan">Interior floor plan</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
                   </div>
-                ))}
+                </div>
 
-                <Button
-                  variant="outline"
-                  className="mt-2"
-                  onClick={() => window.open('https://hover.to/capture', '_blank')}
-                >
-                  + Capture a new property
-                </Button>
+                {/* Jobs List */}
+                <div className="grid grid-cols-1 gap-4">
+                  {jobs
+                    .filter(job => {
+                      // Filter by search query
+                      const matchesSearch = job.address.toLowerCase().includes(jobSearchQuery.toLowerCase());
+                      
+                      // Filter by status
+                      const matchesStatus = statusFilter.length === 0 || statusFilter.includes(job.status);
+                      
+                      // Filter by deliverables - match if any selected deliverable is present
+                      const matchesDeliverable = deliverableFilter.length === 0 || 
+                        job.deliverables.some(d => deliverableFilter.includes(d));
+                      
+                      return matchesSearch && matchesStatus && matchesDeliverable;
+                    })
+                    .map((job) => (
+                    <div 
+                      key={job.id}
+                      className={`p-4 border rounded-lg cursor-pointer transition-all ${
+                        selectedJob === job.id 
+                          ? 'border-primary bg-primary/10' 
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                      onClick={() => selectJob(job.id)}
+                    >
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-medium">{job.address}</h3>
+                          <p className="text-sm text-muted-foreground">Created on {job.date}</p>
+                          <div className="mt-2 space-y-1">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-muted-foreground">Job status:</span>
+                              <span className={`text-sm px-2 py-0.5 rounded-full ${
+                                job.status === 'Complete' ? 'bg-green-500/10 text-green-500' :
+                                job.status === 'Processing' ? 'bg-blue-500/10 text-blue-500' :
+                                'bg-red-500/10 text-red-500'
+                              }`}>
+                                {job.status}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-muted-foreground">Deliverables:</span>
+                              <div className="flex gap-1 flex-wrap">
+                                {job.deliverables.map((deliverable, index) => (
+                                  <span 
+                                    key={index}
+                                    className="text-sm px-2 py-0.5 rounded-full bg-primary/10 text-primary"
+                                  >
+                                    {deliverable}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        {selectedJob === job.id && (
+                          <CheckCircle2 className="w-5 h-5 text-primary" />
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="pt-4 border-t mb-6">
+                  <h3 className="text-xl font-semibold mb-4">Start a new job</h3>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Create a new property in Hover to get started with your estimate.
+                  </p>
+                  
+                  <Button
+                    variant="outline"
+                    className="w-auto"
+                    onClick={() => {
+                      setHoverOptionsTitle('Create a new Hover');
+                      setIsAddingStructure(false);
+                      setShowHoverOptions(true);
+                    }}
+                  >
+                    Create a new Hover
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -379,15 +590,18 @@ export default function GuidedEstimateScreen() {
 
                 <div
                   className="border border-dashed rounded-lg cursor-pointer transition-all overflow-hidden border-border hover:border-primary/50 flex flex-col items-center justify-center p-8"
-                  onClick={openHoverDesignStudio}
+                  onClick={() => {
+                    setHoverOptionsTitle('Add another structure or floor');
+                    setIsAddingStructure(true);
+                    setShowHoverOptions(true);
+                  }}
                 >
                   <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mb-2">
                     <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                     </svg>
                   </div>
-                  <h3 className="font-medium text-center">Create New Model</h3>
-                  <p className="text-sm text-muted-foreground text-center mt-1">Open Hover Design Studio</p>
+                  <h3 className="font-medium text-center">Add another<br />structure or floor</h3>
                 </div>
               </div>
             </CardContent>
@@ -717,6 +931,234 @@ export default function GuidedEstimateScreen() {
       </div>
       
       <Toaster position="top-center" />
+
+      <Dialog open={showHoverOptions} onOpenChange={setShowHoverOptions}>
+        <DialogContent className="sm:max-w-md bg-zinc-800">
+          <DialogHeader>
+            <DialogTitle>{hoverOptionsTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2"
+              onClick={() => {
+                window.open('https://hover.to/wr/new-construction/upload', '_blank')
+                setShowHoverOptions(false)
+              }}
+            >
+              <Upload className="w-4 h-4" />
+              Upload plans
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2"
+              onClick={() => {
+                setShowHoverOptions(false)
+                setShowScanForm(true)
+                if (isAddingStructure) {
+                  const selectedJobAddress = jobs.find(job => job.id === selectedJob)?.address || '';
+                  setScanFormData(prev => ({
+                    ...prev,
+                    address: selectedJobAddress
+                  }));
+                }
+              }}
+            >
+              <Scan className="w-4 h-4" />
+              Scan a space
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2"
+              onClick={() => {
+                setShowHoverOptions(false)
+                setShowSearchForm(true)
+              }}
+            >
+              <Search className="w-4 h-4" />
+              Search for an address
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showScanForm} onOpenChange={setShowScanForm}>
+        <DialogContent className="sm:max-w-xl bg-zinc-800">
+          <DialogHeader>
+            <DialogTitle>Scan a space</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="propertyName">Property Name</Label>
+              <Input
+                id="propertyName"
+                value={scanFormData.propertyName}
+                onChange={(e) => setScanFormData({...scanFormData, propertyName: e.target.value})}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Recipient Type</Label>
+              <Select
+                value={scanFormData.recipientType}
+                onValueChange={(value) => setScanFormData({...scanFormData, recipientType: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="homeowner">Homeowner</SelectItem>
+                  <SelectItem value="professional">Professional</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="recipientName">Recipient Name</Label>
+              <Input
+                id="recipientName"
+                value={scanFormData.recipientName}
+                onChange={(e) => setScanFormData({...scanFormData, recipientName: e.target.value})}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="leadNumber">Lead Number</Label>
+              <Input
+                id="leadNumber"
+                value={scanFormData.leadNumber}
+                onChange={(e) => setScanFormData({...scanFormData, leadNumber: e.target.value})}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="phoneNumber">Phone Number</Label>
+              <Input
+                id="phoneNumber"
+                value={scanFormData.phoneNumber}
+                onChange={(e) => setScanFormData({...scanFormData, phoneNumber: e.target.value})}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={scanFormData.email}
+                onChange={(e) => setScanFormData({...scanFormData, email: e.target.value})}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="address">Address</Label>
+              <Input
+                id="address"
+                value={scanFormData.address}
+                onChange={(e) => setScanFormData({...scanFormData, address: e.target.value})}
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label>Deliverable Type</Label>
+              <Select
+                value={scanFormData.deliverableType}
+                onValueChange={(value) => setScanFormData({...scanFormData, deliverableType: value})}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Choose..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="roof-only">Roof-Only</SelectItem>
+                  <SelectItem value="complete">Complete</SelectItem>
+                  <SelectItem value="interior-floor-plan">Interior Floor Plan</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="captureNowPayLater"
+                checked={scanFormData.captureNowPayLater}
+                onCheckedChange={(checked) => setScanFormData({...scanFormData, captureNowPayLater: checked as boolean})}
+              />
+              <label
+                htmlFor="captureNowPayLater"
+                className="text-sm leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Capture now. Pay later. Save photos now. Order & pay when you're ready.
+              </label>
+            </div>
+
+            <div className="flex justify-end space-x-2 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setShowScanForm(false)}
+              >
+                Cancel request
+              </Button>
+              <Button
+                onClick={() => {
+                  // Handle form submission here
+                  console.log('Form data:', scanFormData)
+                  setShowScanForm(false)
+                  window.open('https://hover.to/capture', '_blank')
+                }}
+              >
+                Send invite
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showSearchForm} onOpenChange={setShowSearchForm}>
+        <DialogContent className="sm:max-w-md bg-zinc-800">
+          <DialogHeader>
+            <DialogTitle>Search for an address to see if a Hover already exists</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-6 py-4">
+            <div className="relative">
+              <Input
+                disabled
+                placeholder="Enter address..."
+                value={searchAddress}
+                onChange={(e) => setSearchAddress(e.target.value)}
+                className="pr-8"
+              />
+              <Search className="w-4 h-4 absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground" />
+            </div>
+
+            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-4">
+              <p className="text-sm font-medium text-yellow-500 mb-4">Feature coming soon</p>
+              <p className="text-sm text-muted-foreground mb-4">Do you want to be notified when it becomes available?</p>
+              <div className="flex gap-4">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                  onClick={() => {
+                    toast.success('Thanks for your interest! We\'ll notify you when this feature is available.')
+                    setShowSearchForm(false)
+                  }}
+                >
+                  <ThumbsUp className="w-4 h-4" />
+                  Yes, notify me
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-2"
+                  onClick={() => setShowSearchForm(false)}
+                >
+                  <ThumbsDown className="w-4 h-4" />
+                  No, thanks
+                </Button>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </main>
   )
 } 
