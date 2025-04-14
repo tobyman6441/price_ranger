@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { CheckCircle2, Upload, Scan, Search, ThumbsUp, ThumbsDown } from 'lucide-react'
+import { CheckCircle2, Upload, Scan, Search, ThumbsUp, ThumbsDown, Link2 } from 'lucide-react'
 import { toast, Toaster } from 'sonner'
 import Image from 'next/image'
 import { Switch } from '@/components/ui/switch'
@@ -977,6 +977,17 @@ export default function GuidedEstimateScreen() {
             >
               <Search className="w-4 h-4" />
               Search for an address
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start gap-2"
+              onClick={() => {
+                setShowHoverOptions(false)
+                router.push('/connect-hover')
+              }}
+            >
+              <Link2 className="w-4 h-4" />
+              Connect your Hover account
             </Button>
           </div>
         </DialogContent>
