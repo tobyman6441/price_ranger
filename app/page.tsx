@@ -116,6 +116,14 @@ export default function KanbanView() {
   const [targetOpportunity, setTargetOpportunity] = useState<{ id: string; title: string } | null>(null)
   const [isMergeMode, setIsMergeMode] = useState(false)
 
+  useEffect(() => {
+    // Check if we're on a mobile device
+    const isMobile = window.innerWidth < 640 // 640px is the sm breakpoint in Tailwind
+    if (isMobile) {
+      setViewMode('grid')
+    }
+  }, [])
+
   // Filter opportunities based on search query
   const filteredOpportunities = opportunities.filter(opportunity => {
     // Search query filter
