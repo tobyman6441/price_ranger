@@ -34,6 +34,9 @@ import { calculateMonthlyPayment } from '@/app/utils/calculations'
 import { EstimateDetails } from '@/app/components/EstimateDetails'
 import { OpportunitySaveTemplateDialog } from '../../components/opportunity-save-template-dialog'
 import { Operator, Opportunity, Template } from '@/app/types'
+import { DuplicateOptionDialog } from '@/app/components/duplicate-option-dialog'
+import { SelectOpportunityDialog } from '@/app/components/select-opportunity-dialog'
+import { NewOpportunityDialog } from '@/app/components/new-opportunity-dialog'
 
 // Extended Option interface with image arrays for cycling
 interface Option {
@@ -238,6 +241,10 @@ export default function OpportunityPage() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [columns, setColumns] = useState<{id: string, title: string}[]>([])
   const [templates, setTemplates] = useState<{ id: string; name: string; data: Opportunity }[]>([])
+  const [showDuplicateDialog, setShowDuplicateDialog] = useState(false)
+  const [optionToDuplicate, setOptionToDuplicate] = useState<Option | null>(null)
+  const [showSelectOpportunityDialog, setShowSelectOpportunityDialog] = useState(false)
+  const [showNewOpportunityDialog, setShowNewOpportunityDialog] = useState(false)
 
   // Load columns from localStorage
   useEffect(() => {
@@ -484,9 +491,16 @@ export default function OpportunityPage() {
     toast.success('Auto saved');
   };
 
-  const handleDuplicateOption = (optionToDuplicate: Option) => {
+  const handleDuplicateOption = (option: Option) => {
+    setOptionToDuplicate(option)
+    setShowDuplicateDialog(true)
+  }
+
+  const handleCopyToCurrent = () => {
+    if (!optionToDuplicate) return
+
     // Create a deep copy to avoid reference issues
-    const duplicatedOption = JSON.parse(JSON.stringify(optionToDuplicate));
+    const duplicatedOption = JSON.parse(JSON.stringify(optionToDuplicate))
     
     // Create new option with proper initialization of calculatedPriceDetails
     const newOption: Option = {
@@ -508,26 +522,39 @@ export default function OpportunityPage() {
         totalTax: duplicatedOption.calculatedPriceDetails.totalTax || 0,
         profitMargin: duplicatedOption.calculatedPriceDetails.profitMargin || 75
       } : undefined
-    };
+    }
     
-    const updatedOptions = [...options, newOption];
+    // Find the index of the original option
+    const originalIndex = options.findIndex(opt => opt.id === optionToDuplicate.id)
+    
+    // Insert the new option after the original option
+    const updatedOptions = [
+      ...options.slice(0, originalIndex + 1),
+      newOption,
+      ...options.slice(originalIndex + 1)
+    ]
     
     // Create a new operator for the duplicated option
     const newOperator: Operator = {
       id: Math.random().toString(36).substr(2, 9),
       type: 'or'
-    };
+    }
     
-    const updatedOperators = [...operators, newOperator];
+    // Insert the new operator at the same position
+    const updatedOperators = [
+      ...operators.slice(0, originalIndex + 1),
+      newOperator,
+      ...operators.slice(originalIndex + 1)
+    ]
     
-    setOptions(updatedOptions);
-    setOperators(updatedOperators);
-    saveToHistory(updatedOptions, updatedOperators);
+    setOptions(updatedOptions)
+    setOperators(updatedOperators)
+    saveToHistory(updatedOptions, updatedOperators)
     
     // Save to localStorage immediately
-    const opportunityId = params?.id as string;
-    const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[];
-    const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId);
+    const opportunityId = params?.id as string
+    const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[]
+    const existingIndex = opportunities.findIndex((opp: Opportunity) => opp.id === opportunityId)
     
     if (existingIndex >= 0) {
       opportunities[existingIndex] = {
@@ -535,12 +562,149 @@ export default function OpportunityPage() {
         options: updatedOptions,
         operators: updatedOperators,
         lastUpdated: new Date().toISOString()
-      };
-      localStorage.setItem('opportunities', JSON.stringify(opportunities));
+      }
+      localStorage.setItem('opportunities', JSON.stringify(opportunities))
     }
     
-    toast.success('Option duplicated');
-  };
+    toast.success('Option duplicated')
+  }
+
+  const handleCopyToDifferent = () => {
+    if (!optionToDuplicate) return
+    setShowDuplicateDialog(false)
+    setShowSelectOpportunityDialog(true)
+  }
+
+  const handleSelectOpportunity = (targetOpportunityId: string) => {
+    if (!optionToDuplicate) return
+
+    // Get all opportunities
+    const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[]
+    
+    // Find the target opportunity
+    const targetOpportunityIndex = opportunities.findIndex(opp => opp.id === targetOpportunityId)
+    if (targetOpportunityIndex === -1) return
+
+    // Create a deep copy of the option
+    const duplicatedOption = JSON.parse(JSON.stringify(optionToDuplicate))
+    
+    // Create new option with proper initialization
+    const newOption: Option = {
+      ...duplicatedOption,
+      id: Math.random().toString(36).substr(2, 9), // Generate random ID
+      title: `${duplicatedOption.title} (Copy)`,
+      content: `${duplicatedOption.content} (Copy)`,
+      calculatedPriceDetails: duplicatedOption.calculatedPriceDetails ? {
+        ...duplicatedOption.calculatedPriceDetails,
+        totalPrice: duplicatedOption.price || 0,
+        materialCost: duplicatedOption.calculatedPriceDetails.materialCost || 0,
+        laborCost: duplicatedOption.calculatedPriceDetails.laborCost || 0,
+        otherCost: duplicatedOption.calculatedPriceDetails.otherCost || 0,
+        materialTax: duplicatedOption.calculatedPriceDetails.materialTax || 0,
+        laborTax: duplicatedOption.calculatedPriceDetails.laborTax || 0,
+        otherTax: duplicatedOption.calculatedPriceDetails.otherTax || 0,
+        totalTax: duplicatedOption.calculatedPriceDetails.totalTax || 0,
+        profitMargin: duplicatedOption.calculatedPriceDetails.profitMargin || 75
+      } : undefined
+    }
+
+    // Add the new option to the target opportunity
+    const targetOpportunity = opportunities[targetOpportunityIndex]
+    const updatedOptions = [...targetOpportunity.options, newOption]
+    
+    // Create a new operator for the duplicated option
+    const newOperator: Operator = {
+      id: Math.random().toString(36).substr(2, 9),
+      type: 'or'
+    }
+    
+    const updatedOperators = [...targetOpportunity.operators, newOperator]
+    
+    // Update the target opportunity
+    opportunities[targetOpportunityIndex] = {
+      ...targetOpportunity,
+      options: updatedOptions,
+      operators: updatedOperators,
+      lastUpdated: new Date().toISOString()
+    }
+    
+    // Save to localStorage
+    localStorage.setItem('opportunities', JSON.stringify(opportunities))
+    
+    // Clear the duplicate option state after the operation
+    setOptionToDuplicate(null)
+    setShowSelectOpportunityDialog(false)
+    
+    toast.success('Option copied to selected opportunity')
+  }
+
+  const handleCopyToNew = () => {
+    if (!optionToDuplicate) return
+    setShowDuplicateDialog(false)
+    setShowNewOpportunityDialog(true)
+  }
+
+  const handleCreateNewOpportunity = (title: string) => {
+    if (!optionToDuplicate) return
+
+    // Create a deep copy of the option
+    const duplicatedOption = JSON.parse(JSON.stringify(optionToDuplicate))
+    
+    // Create new option with proper initialization
+    const newOption: Option = {
+      ...duplicatedOption,
+      id: Math.random().toString(36).substr(2, 9), // Generate random ID
+      title: `${duplicatedOption.title} (Copy)`,
+      content: `${duplicatedOption.content} (Copy)`,
+      calculatedPriceDetails: duplicatedOption.calculatedPriceDetails ? {
+        ...duplicatedOption.calculatedPriceDetails,
+        totalPrice: duplicatedOption.price || 0,
+        materialCost: duplicatedOption.calculatedPriceDetails.materialCost || 0,
+        laborCost: duplicatedOption.calculatedPriceDetails.laborCost || 0,
+        otherCost: duplicatedOption.calculatedPriceDetails.otherCost || 0,
+        materialTax: duplicatedOption.calculatedPriceDetails.materialTax || 0,
+        laborTax: duplicatedOption.calculatedPriceDetails.laborTax || 0,
+        otherTax: duplicatedOption.calculatedPriceDetails.otherTax || 0,
+        totalTax: duplicatedOption.calculatedPriceDetails.totalTax || 0,
+        profitMargin: duplicatedOption.calculatedPriceDetails.profitMargin || 75
+      } : undefined
+    }
+
+    // Create a new operator for the duplicated option
+    const newOperator: Operator = {
+      id: Math.random().toString(36).substr(2, 9),
+      type: 'or'
+    }
+
+    // Create new opportunity
+    const newOpportunity: Opportunity = {
+      id: Math.random().toString(36).substr(2, 9),
+      title: title,
+      options: [newOption],
+      operators: [newOperator],
+      lastUpdated: new Date().toISOString(),
+      column: 'drafts',
+      packageNames: {}
+    }
+
+    // Get existing opportunities
+    const opportunities = JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[]
+    
+    // Add new opportunity
+    opportunities.push(newOpportunity)
+    
+    // Save to localStorage
+    localStorage.setItem('opportunities', JSON.stringify(opportunities))
+    
+    // Clear the duplicate option state after the operation
+    setOptionToDuplicate(null)
+    setShowNewOpportunityDialog(false)
+    
+    // Navigate to the new opportunity
+    router.push(`/opportunity/${newOpportunity.id}`)
+    
+    toast.success('Option copied to new opportunity')
+  }
 
   const handleOperatorChange = (operatorId: string, newType: 'and' | 'or') => {
     const updatedOperators = operators.map(op => 
@@ -1800,6 +1964,53 @@ Primed offers the classic charm of tongue-and-groove siding with the lasting dur
           optionDetails={adaptOptionToEstimateDetails(options.find(opt => opt.id === selectedOptionId))}
           onSave={handleSaveEstimate}
         />
+
+        {optionToDuplicate && (
+          <DuplicateOptionDialog
+            isOpen={showDuplicateDialog}
+            onClose={() => {
+              setShowDuplicateDialog(false)
+              setOptionToDuplicate(null)
+            }}
+            onCopyToCurrent={handleCopyToCurrent}
+            onCopyToDifferent={handleCopyToDifferent}
+            onCopyToNew={handleCopyToNew}
+            option={optionToDuplicate}
+            currentOpportunity={{
+              id: params?.id as string,
+              title: opportunity?.title || '',
+              options: options,
+              operators: operators,
+              lastUpdated: new Date().toISOString(),
+              column: opportunity?.column || 'drafts',
+              packageNames: opportunity?.packageNames || {}
+            }}
+          />
+        )}
+
+        {optionToDuplicate && (
+          <SelectOpportunityDialog
+            isOpen={showSelectOpportunityDialog}
+            onClose={() => {
+              setShowSelectOpportunityDialog(false)
+              setOptionToDuplicate(null)
+            }}
+            onSelect={handleSelectOpportunity}
+            currentOpportunityId={params?.id as string}
+            opportunities={JSON.parse(localStorage.getItem('opportunities') || '[]') as Opportunity[]}
+          />
+        )}
+
+        {optionToDuplicate && (
+          <NewOpportunityDialog
+            isOpen={showNewOpportunityDialog}
+            onClose={() => {
+              setShowNewOpportunityDialog(false)
+              setOptionToDuplicate(null)
+            }}
+            onCreate={handleCreateNewOpportunity}
+          />
+        )}
 
         <Toaster position="top-center" />
       </div>

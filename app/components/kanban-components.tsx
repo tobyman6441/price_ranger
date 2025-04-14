@@ -8,6 +8,17 @@ import { cn } from '@/lib/utils'
 import { Trash2 } from 'lucide-react'
 import Image from 'next/image'
 import { calculateMonthlyPayment } from '@/app/utils/calculations'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { DndContext, DragOverlay, useSensor, useSensors, PointerSensor, DraggableAttributes } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
+
+type DragHandleProps = {
+  attributes: DraggableAttributes
+  listeners: {
+    onPointerDown: (e: React.PointerEvent) => void
+  }
+}
 
 interface DroppableColumnProps {
   id: string
@@ -69,13 +80,6 @@ interface Operator {
   type: 'and' | 'or'
 }
 
-type DragHandleProps = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  attributes: any
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  listeners: any
-}
-
 interface OpportunityCardProps {
   id: string
   title: string
@@ -84,6 +88,7 @@ interface OpportunityCardProps {
   lastUpdated: string
   column: string
   onDelete: (id: string) => void
+  onMerge?: (id: string) => void
   isDraggable?: boolean
   dragHandleProps?: DragHandleProps
   packageNames?: { [key: number]: string }
@@ -92,6 +97,7 @@ interface OpportunityCardProps {
     discount: string
     validUntil: string
   }
+  isSelected?: boolean
 }
 
 export function DroppableColumn({ 
@@ -356,10 +362,12 @@ export function OpportunityCard({
   lastUpdated, 
   column, 
   onDelete,
+  onMerge,
   isDraggable = false,
   dragHandleProps,
   packageNames,
-  promotion
+  promotion,
+  isSelected = false
 }: OpportunityCardProps) {
   const router = useRouter()
 
@@ -378,6 +386,14 @@ export function OpportunityCard({
     e.preventDefault()
     e.stopPropagation()
     router.push(`/opportunity/${id}`)
+  }
+
+  const handleMergeClick = (e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (onMerge) {
+      onMerge(id)
+    }
   }
 
   // Calculate days in stage
@@ -467,13 +483,11 @@ export function OpportunityCard({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      onClick={handleCardClick}
       className={`group relative rounded-lg border p-4 transition-all ${
         isDraggable ? 'cursor-grab active:cursor-grabbing' : 'cursor-pointer'
       } ${dragHandleProps?.listeners ? 'touch-none' : ''}
-      bg-white/25 shadow-sm hover:shadow-md border-border/40 hover:border-border/60`}
+      bg-white/25 shadow-sm hover:shadow-md border-border/40 hover:border-border/60
+      ${isSelected ? 'bg-purple-50' : ''}`}
       {...(isDraggable && dragHandleProps ? {
         ...dragHandleProps.attributes,
         ...dragHandleProps.listeners,
@@ -481,10 +495,17 @@ export function OpportunityCard({
           if ((e.target as HTMLElement).closest('.action-button')) {
             return
           }
-          dragHandleProps.listeners.onPointerDown(e)
+          dragHandleProps.listeners?.onPointerDown?.(e)
         }
-      } : {})}
+      } : {
+        role: 'button',
+        tabIndex: 0,
+        onClick: handleCardClick
+      })}
     >
+      {isSelected && (
+        <div className="absolute inset-0 rounded-lg border-2 border-purple-200 pointer-events-none" />
+      )}
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <h3 className="text-base font-medium text-foreground truncate">
@@ -513,6 +534,18 @@ export function OpportunityCard({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
             </svg>
           </button>
+          {onMerge && (
+            <button
+              onClick={handleMergeClick}
+              className={`action-button transition-colors p-1 ${
+                isSelected ? 'text-purple-500' : 'text-foreground/50 hover:text-purple-500'
+              }`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8C4 8 8 4 12 8M4 16C4 16 8 20 12 16M12 12L20 12M20 12L16 8M20 12L16 16" />
+              </svg>
+            </button>
+          )}
           <button
             onClick={handleDeleteClick}
             className="action-button text-foreground/50 hover:text-red-500 transition-colors p-1"

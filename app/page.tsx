@@ -27,6 +27,7 @@ import {
 import { SaveTemplateDialog } from './components/save-template-dialog'
 import type { OpportunityCardProps } from '@/app/components/OpportunityCard'
 import { createClient } from '@/lib/supabase/client'
+import { MergeOpportunityDialog } from './components/merge-opportunity-dialog'
 
 interface Column {
   id: string
@@ -110,6 +111,10 @@ export default function KanbanView() {
   const [isAddingOpportunity, setIsAddingOpportunity] = useState(false)
   const [isEditingOpportunity, setIsEditingOpportunity] = useState<string | null>(null)
   const [templates, setTemplates] = useState<{ id: string; name: string; data: Opportunity }[]>([])
+  const [mergeDialogOpen, setMergeDialogOpen] = useState(false)
+  const [sourceOpportunity, setSourceOpportunity] = useState<{ id: string; title: string } | null>(null)
+  const [targetOpportunity, setTargetOpportunity] = useState<{ id: string; title: string } | null>(null)
+  const [isMergeMode, setIsMergeMode] = useState(false)
 
   // Filter opportunities based on search query
   const filteredOpportunities = opportunities.filter(opportunity => {
@@ -559,6 +564,63 @@ export default function KanbanView() {
     }
   }
 
+  const handleMergeOpportunity = (id: string) => {
+    const opportunity = opportunities.find(opp => opp.id === id)
+    if (!opportunity) return
+
+    if (!sourceOpportunity) {
+      setSourceOpportunity({ id: opportunity.id, title: opportunity.title })
+      toast.success('Select the opportunity to merge into')
+    } else {
+      setTargetOpportunity({ id: opportunity.id, title: opportunity.title })
+      setMergeDialogOpen(true)
+    }
+  }
+
+  const handleMergeConfirm = (sourceId: string, targetId: string) => {
+    const sourceOpp = opportunities.find(opp => opp.id === sourceId)
+    const targetOpp = opportunities.find(opp => opp.id === targetId)
+
+    if (!sourceOpp || !targetOpp) return
+
+    // Merge options from source into target
+    const mergedOptions = [...targetOpp.options, ...sourceOpp.options]
+    
+    // Merge operators from source into target
+    const mergedOperators = [...new Set([...targetOpp.operators, ...sourceOpp.operators])]
+    
+    // Merge package names from source into target
+    const mergedPackageNames = {
+      ...targetOpp.packageNames,
+      ...sourceOpp.packageNames
+    }
+
+    // Create merged opportunity
+    const mergedOpportunity = {
+      ...targetOpp,
+      options: mergedOptions,
+      operators: mergedOperators,
+      packageNames: mergedPackageNames,
+      lastUpdated: new Date().toISOString()
+    }
+
+    // Update opportunities
+    const updatedOpportunities = opportunities
+      .filter(opp => opp.id !== sourceId && opp.id !== targetId)
+      .concat(mergedOpportunity)
+
+    setOpportunities(updatedOpportunities)
+    localStorage.setItem('opportunities', JSON.stringify(updatedOpportunities))
+
+    // Reset merge state
+    setSourceOpportunity(null)
+    setTargetOpportunity(null)
+    setMergeDialogOpen(false)
+    setIsMergeMode(false)
+
+    toast.success('Opportunities merged successfully')
+  }
+
   return (
     <main className={`container mx-auto p-4 h-screen flex flex-col`}>
       <nav className="flex flex-row items-center justify-end mb-4 sm:mb-8 gap-4">
@@ -624,6 +686,16 @@ export default function KanbanView() {
               }`}
             >
               Grid View
+            </button>
+            <button
+              onClick={() => setIsMergeMode(!isMergeMode)}
+              className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${
+                isMergeMode
+                  ? 'bg-purple-500 text-white hover:bg-purple-600'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80'
+              }`}
+            >
+              {isMergeMode ? 'Cancel Merge' : 'Merge Opportunities'}
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
@@ -847,9 +919,11 @@ export default function KanbanView() {
                                 lastUpdated={opportunity.lastUpdated}
                                 column={column.title}
                                 onDelete={handleDeleteOpportunity}
-                                isDraggable={true}
+                                onMerge={isMergeMode ? handleMergeOpportunity : undefined}
+                                isDraggable={!isMergeMode}
                                 promotion={opportunity.promotion}
                                 packageNames={opportunity.packageNames}
+                                isSelected={isMergeMode && (sourceOpportunity?.id === opportunity.id || targetOpportunity?.id === opportunity.id)}
                               />
                             </DraggableOpportunity>
                           )
@@ -919,9 +993,11 @@ export default function KanbanView() {
                   lastUpdated={activeDraggedOpportunity.lastUpdated}
                   column={columns.find(col => col.id === activeDraggedOpportunity.column)?.title || ''}
                   onDelete={handleDeleteOpportunity}
-                  isDraggable={true}
+                  onMerge={isMergeMode ? handleMergeOpportunity : undefined}
+                  isDraggable={!isMergeMode}
                   promotion={activeDraggedOpportunity.promotion}
                   packageNames={activeDraggedOpportunity.packageNames}
+                  isSelected={isMergeMode && (sourceOpportunity?.id === activeDraggedOpportunity.id || targetOpportunity?.id === activeDraggedOpportunity.id)}
                 />
               </div>
             )}
@@ -998,6 +1074,19 @@ export default function KanbanView() {
         onClose={() => setOpportunityToDelete(null)}
         onConfirm={confirmDeleteOpportunity}
         opportunityTitle={opportunityToDelete?.title || ''}
+      />
+
+      <MergeOpportunityDialog
+        isOpen={mergeDialogOpen}
+        onClose={() => {
+          setMergeDialogOpen(false)
+          setSourceOpportunity(null)
+          setTargetOpportunity(null)
+          setIsMergeMode(false)
+        }}
+        onConfirm={handleMergeConfirm}
+        sourceOpportunity={sourceOpportunity}
+        targetOpportunity={targetOpportunity}
       />
     </main>
   )
