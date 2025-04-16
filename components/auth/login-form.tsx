@@ -28,11 +28,23 @@ export function LoginForm() {
 
       if (error) {
         if (error.message === 'Email not confirmed') {
-          toast.error('Please verify your email address before logging in. Check your inbox for the confirmation link.')
+          const { error: resendError } = await supabase.auth.resend({
+            type: 'signup',
+            email,
+            options: {
+              emailRedirectTo: 'https://priceranger.app/auth/callback',
+            },
+          })
+          
+          if (resendError) {
+            toast.error('Error resending verification email: ' + resendError.message)
+          } else {
+            toast.info('Please verify your email address. A new verification link has been sent to your inbox.')
+          }
         } else {
           toast.error('Error logging in: ' + error.message)
         }
-        throw error
+        return
       }
 
       toast.success('Successfully logged in!')
@@ -40,6 +52,7 @@ export function LoginForm() {
       router.refresh()
     } catch (error) {
       console.error('Error:', error)
+      toast.error('An unexpected error occurred')
     } finally {
       setLoading(false)
     }
