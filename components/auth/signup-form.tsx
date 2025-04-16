@@ -34,13 +34,15 @@ export function SignUpForm() {
         email,
         password,
         options: {
-          emailRedirectTo: `https://priceranger.app/auth/callback`,
-        },
+          data: {
+            email_confirmed: true
+          }
+        }
       })
 
       if (error) throw error
 
-      toast.success('Check your email for the confirmation link!')
+      toast.success('Account created successfully!')
       router.push('/')
       router.refresh()
     } catch (error) {
