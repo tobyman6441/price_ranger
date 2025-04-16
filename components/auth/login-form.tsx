@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
@@ -13,8 +13,51 @@ export function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resendCooldown, setResendCooldown] = useState(0)
   const router = useRouter()
   const supabase = createClient()
+
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(() => {
+        setResendCooldown(prev => prev - 1)
+      }, 1000)
+      return () => clearTimeout(timer)
+    }
+  }, [resendCooldown])
+
+  const handleResendVerification = async (email: string) => {
+    if (resendCooldown > 0) {
+      toast.error(`Please wait ${resendCooldown} seconds before requesting another verification email`)
+      return
+    }
+
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: 'https://priceranger.app/auth/callback',
+        },
+      })
+      
+      if (resendError) {
+        if (resendError.message.includes('rate limit')) {
+          const waitSeconds = parseInt(resendError.message.match(/\d+/)?.[0] || '60')
+          setResendCooldown(waitSeconds)
+          toast.error(`Please wait ${waitSeconds} seconds before requesting another verification email`)
+        } else {
+          toast.error('Error resending verification email: ' + resendError.message)
+        }
+      } else {
+        setResendCooldown(60) // Set default cooldown
+        toast.success('Verification email sent! Please check your inbox.')
+      }
+    } catch (error) {
+      console.error('Error:', error)
+      toast.error('An unexpected error occurred while sending verification email')
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,19 +71,13 @@ export function LoginForm() {
 
       if (error) {
         if (error.message === 'Email not confirmed') {
-          const { error: resendError } = await supabase.auth.resend({
-            type: 'signup',
-            email,
-            options: {
-              emailRedirectTo: 'https://priceranger.app/auth/callback',
+          toast.error('Your email is not verified.', {
+            description: 'Click the button below to resend the verification email.',
+            action: {
+              label: resendCooldown > 0 ? `Wait ${resendCooldown}s` : 'Resend Email',
+              onClick: () => handleResendVerification(email),
             },
           })
-          
-          if (resendError) {
-            toast.error('Error resending verification email: ' + resendError.message)
-          } else {
-            toast.info('Please verify your email address. A new verification link has been sent to your inbox.')
-          }
         } else {
           toast.error('Error logging in: ' + error.message)
         }
