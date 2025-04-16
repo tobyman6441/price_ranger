@@ -539,7 +539,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
     if (optionDetails) {
       // Calculate and save final prices for each option
       const updatedOptions = optionDetails.options?.map(option => {
-        const originalPrice = option.price || option.details?.price;
+        const originalPrice = option.price || option.details?.price || 0;
         if (originalPrice) {
           const discountValue = parseFloat(newPromotion.discount.replace(/[^0-9.]/g, ''));
           const isPercentage = newPromotion.discount.includes('%');
@@ -549,9 +549,15 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
 
           return {
             ...option,
-            finalPrice,
+            price: originalPrice, // Keep original price
+            finalPrice, // Store discounted price separately
+            promotion: newPromotion, // Attach promotion to the option
             details: option.details 
-              ? { ...option.details, finalPrice }
+              ? {
+                  ...option.details,
+                  price: option.details.price || originalPrice, // Keep original price
+                  finalPrice // Store discounted price separately
+                }
               : option.details
           };
         }
@@ -758,7 +764,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
 
     // Calculate and save final prices for each option
     const updatedOptions = optionDetails.options?.map(option => {
-      const originalPrice = option.price || option.details?.price;
+      const originalPrice = option.price || option.details?.price || 0;
       if (originalPrice) {
         const discountValue = parseFloat(promotion.discount.replace(/[^0-9.]/g, ''));
         const isPercentage = promotion.discount.includes('%');
@@ -768,17 +774,24 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
 
         return {
           ...option,
-          finalPrice,
+          price: originalPrice, // Keep original price
+          finalPrice, // Store discounted price separately
+          promotion, // Attach promotion to the option
           details: option.details 
-            ? { ...option.details, finalPrice }
+            ? {
+                ...option.details,
+                price: option.details.price || originalPrice, // Keep original price
+                finalPrice // Store discounted price separately
+              }
             : option.details
         };
       }
       return option;
     }) || [];
 
-    // Create the updated details object
-    const updatedDetails: EstimateDetails = {
+    // Create the updated details object with all necessary fields
+    const updatedDetails = {
+      ...optionDetails,
       title,
       description,
       price,
@@ -789,7 +802,7 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
       hasCalculations: isCalculated,
       showAsLowAsPrice,
       isApproved,
-      promotion,
+      promotion, // Attach promotion to the opportunity
       financingOption: activeFinancingOption || undefined,
       options: updatedOptions,
       calculatedPriceDetails: calculatedPriceDetails || undefined,
@@ -802,23 +815,33 @@ export function EstimateDetails({ isOpen, onClose, onCalculate, optionDetails, o
 
   const handleRemovePromotion = () => {
     setActivePromotion(null);
-    
+    setIsPromotionEnabled(false);
+
     if (!optionDetails) return;
 
-    // Clear final prices when removing promotion
-    const updatedOptions = optionDetails.options?.map(option => ({
-      ...option,
-      finalPrice: undefined,
-      details: option.details 
-        ? { ...option.details, finalPrice: undefined }
-        : option.details
-    })) || [];
+    // Reset all options to their original prices
+    const updatedOptions = optionDetails.options?.map(option => {
+      const originalPrice = option.price || option.details?.price || 0;
+      return {
+        ...option,
+        price: originalPrice,
+        finalPrice: undefined, // Remove the final price
+        promotion: undefined, // Remove the promotion
+        details: option.details 
+          ? {
+              ...option.details,
+              price: option.details.price || originalPrice,
+              finalPrice: undefined // Remove the final price
+            }
+          : option.details
+      };
+    }) || [];
 
-    // Update the option details without promotion and final prices
+    // Create updated details and save without closing
     onSave({
       ...optionDetails,
+      promotion: undefined, // Remove the promotion from the opportunity
       options: updatedOptions,
-      promotion: undefined,
       _preventClose: true
     });
   };
