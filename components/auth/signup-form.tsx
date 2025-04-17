@@ -34,15 +34,13 @@ export function SignUpForm() {
         email,
         password,
         options: {
-          data: {
-            email_confirmed: true
-          }
-        }
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
       })
 
       if (error) throw error
 
-      toast.success('Account created successfully!')
+      toast.success('Check your email for the confirmation link!')
       router.push('/')
       router.refresh()
     } catch (error) {

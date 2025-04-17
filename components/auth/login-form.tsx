@@ -27,8 +27,12 @@ export function LoginForm() {
       })
 
       if (error) {
-        toast.error('Error logging in: ' + error.message)
-        return
+        if (error.message === 'Email not confirmed') {
+          toast.error('Please verify your email address before logging in. Check your inbox for the confirmation link.')
+        } else {
+          toast.error('Error logging in: ' + error.message)
+        }
+        throw error
       }
 
       toast.success('Successfully logged in!')
@@ -36,7 +40,6 @@ export function LoginForm() {
       router.refresh()
     } catch (error) {
       console.error('Error:', error)
-      toast.error('An unexpected error occurred')
     } finally {
       setLoading(false)
     }

@@ -3,28 +3,27 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
-  try {
-    const requestUrl = new URL(request.url)
-    const code = requestUrl.searchParams.get('code')
+  const requestUrl = new URL(request.url)
+  const code = requestUrl.searchParams.get('code')
 
-    if (!code) {
-      return NextResponse.redirect(new URL('/', requestUrl.origin))
-    }
-
+  if (code) {
     const supabase = createRouteHandlerClient({ cookies })
     
     // Exchange the code for a session
-    const { error: sessionError } = await supabase.auth.exchangeCodeForSession(code)
+    await supabase.auth.exchangeCodeForSession(code)
 
-    if (sessionError) {
-      console.error('Session error:', sessionError)
-      return NextResponse.redirect(new URL('/login', requestUrl.origin))
+    // Get the user
+    const { data: { user } } = await supabase.auth.getUser()
+
+    if (user) {
+      // Update team member status to active
+      await supabase
+        .from('team_members')
+        .update({ status: 'active' })
+        .eq('email', user.email)
     }
-
-    // Redirect to home page
-    return NextResponse.redirect(new URL('/', requestUrl.origin))
-  } catch (error) {
-    console.error('Callback error:', error)
-    return NextResponse.redirect(new URL('/login', request.url))
   }
+
+  // URL to redirect to after sign in process completes
+  return NextResponse.redirect(new URL('/', requestUrl.origin))
 } 
