@@ -560,8 +560,8 @@ export default function KanbanView() {
     try {
       localStorage.removeItem('user')
       toast.success('Successfully logged out')
-      router.push('/login')
-      router.refresh()
+      // router.push('/login')
+      // router.refresh()
     } catch (error) {
       toast.error('Error signing out')
       console.error('Error:', error)

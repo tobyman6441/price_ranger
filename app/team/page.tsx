@@ -47,10 +47,10 @@ export default function TeamPage() {
 
     try {
       const user = JSON.parse(localStorage.getItem('user') || '{}')
-      if (!user.email) {
-        router.push('/login')
-        return
-      }
+      // if (!user.email) {
+      //   router.push('/login')
+      //   return
+      // }
 
       // Check if the user is already invited
       const existingMember = teamMembers.find(member => member.email === formData.email)
