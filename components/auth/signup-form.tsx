@@ -3,7 +3,6 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,7 +16,6 @@ export function SignUpForm() {
   const [loading, setLoading] = useState(false)
   const [acceptedTerms, setAcceptedTerms] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -30,19 +28,15 @@ export function SignUpForm() {
     setLoading(true)
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
-
-      if (error) throw error
-
-      toast.success('Check your email for the confirmation link!')
-      router.push('/')
-      router.refresh()
+      // Simple mock registration
+      if (email && password) {
+        localStorage.setItem('user', JSON.stringify({ email }))
+        toast.success('Successfully signed up!')
+        router.push('/')
+        router.refresh()
+      } else {
+        toast.error('Please enter both email and password')
+      }
     } catch (error) {
       toast.error('Error signing up')
       console.error('Error:', error)
@@ -52,10 +46,10 @@ export function SignUpForm() {
   }
 
   return (
-    <Card className="w-[400px]">
+    <Card className="w-[350px]">
       <CardHeader>
-        <CardTitle>Create Account</CardTitle>
-        <CardDescription>Enter your details to create a new account</CardDescription>
+        <CardTitle>Sign Up</CardTitle>
+        <CardDescription>Create your account to get started.</CardDescription>
       </CardHeader>
       <form onSubmit={handleSignUp}>
         <CardContent>
@@ -65,11 +59,10 @@ export function SignUpForm() {
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
                 required
-                style={{backgroundColor: "#121212"}}
               />
             </div>
             <div className="flex flex-col space-y-1.5">
@@ -77,30 +70,27 @@ export function SignUpForm() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Create a password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
                 required
-                style={{backgroundColor: "#121212"}}
               />
             </div>
-            <div className="flex flex-row items-start space-x-2 whitespace-nowrap">
+            <div className="flex items-center space-x-2">
               <Checkbox
                 id="terms"
                 checked={acceptedTerms}
                 onCheckedChange={(checked) => setAcceptedTerms(checked as boolean)}
-                required
-                className="mt-0.5"
               />
-              <span className="text-sm">
-                I agree to the <Link href="/terms" className="text-primary underline">Terms of Service</Link> and <Link href="/privacy" className="text-primary underline">Privacy Policy</Link>
-              </span>
+              <Label htmlFor="terms">
+                I accept the <Link href="/terms" className="underline">terms and conditions</Link>
+              </Label>
             </div>
           </div>
         </CardContent>
         <CardFooter className="flex justify-between">
           <Button type="submit" disabled={loading}>
-            {loading ? 'Loading...' : 'Sign Up'}
+            {loading ? 'Signing up...' : 'Sign Up'}
           </Button>
         </CardFooter>
       </form>

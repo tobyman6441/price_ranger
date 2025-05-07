@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,42 +13,34 @@ export function LoginForm() {
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      })
-
-      if (error) {
-        if (error.message === 'Email not confirmed') {
-          toast.error('Please verify your email address before logging in. Check your inbox for the confirmation link.')
-        } else {
-          toast.error('Error logging in: ' + error.message)
-        }
-        throw error
+      // Simple mock authentication
+      if (email && password) {
+        localStorage.setItem('user', JSON.stringify({ email }))
+        toast.success('Successfully logged in!')
+        router.push('/')
+        router.refresh()
+      } else {
+        toast.error('Please enter both email and password')
       }
-
-      toast.success('Successfully logged in!')
-      router.push('/')
-      router.refresh()
     } catch (error) {
       console.error('Error:', error)
+      toast.error('Error logging in')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <Card className="w-full max-w-[350px] shadow-lg">
+    <Card className="w-[350px]">
       <CardHeader>
-        <CardTitle className="text-2xl font-bold text-center">Welcome Back</CardTitle>
-        <CardDescription className="text-center">Enter your credentials to access your account</CardDescription>
+        <CardTitle>Login</CardTitle>
+        <CardDescription>Enter your email and password to continue.</CardDescription>
       </CardHeader>
       <form onSubmit={handleLogin}>
         <CardContent>
@@ -59,12 +50,10 @@ export function LoginForm() {
               <Input
                 id="email"
                 type="email"
-                placeholder="Enter your email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                placeholder="Enter your email"
                 required
-                className="w-full"
-                style={{backgroundColor: "#121212"}}
               />
             </div>
             <div className="flex flex-col space-y-1.5">
@@ -72,19 +61,17 @@ export function LoginForm() {
               <Input
                 id="password"
                 type="password"
-                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                placeholder="Enter your password"
                 required
-                className="w-full"
-                style={{backgroundColor: "#121212"}}
               />
             </div>
           </div>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <Button type="submit" disabled={loading} className="w-full">
-            {loading ? 'Loading...' : 'Login'}
+        <CardFooter className="flex justify-between">
+          <Button type="submit" disabled={loading}>
+            {loading ? 'Logging in...' : 'Login'}
           </Button>
         </CardFooter>
       </form>

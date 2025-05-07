@@ -26,7 +26,6 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { SaveTemplateDialog } from './components/save-template-dialog'
 import type { OpportunityCardProps } from '@/app/components/OpportunityCard'
-import { createClient } from '@/lib/supabase/client'
 import { MergeOpportunityDialog } from './components/merge-opportunity-dialog'
 
 interface Column {
@@ -88,7 +87,6 @@ const initialColumns: Column[] = [
 
 export default function KanbanView() {
   const router = useRouter()
-  const supabase = createClient()
   const [columns, setColumns] = useState<Column[]>(initialColumns)
   const [isAddingColumn, setIsAddingColumn] = useState(false)
   const [newColumnName, setNewColumnName] = useState("")
@@ -558,11 +556,9 @@ export default function KanbanView() {
     router.push(`/opportunity/${newId}`)
   }
 
-  const handleSignOut = async () => {
+  const handleSignOut = () => {
     try {
-      const { error } = await supabase.auth.signOut()
-      if (error) throw error
-      
+      localStorage.removeItem('user')
       toast.success('Successfully logged out')
       router.push('/login')
       router.refresh()
